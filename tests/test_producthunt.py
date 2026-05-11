@@ -219,3 +219,54 @@ def test_fetch_posts_raises_when_next_page_cursor_is_missing():
         match="Product Hunt response missing pageInfo.endCursor",
     ):
         client.fetch_posts_for_date("2026-05-10", limit=30)
+
+
+def test_fetch_posts_raises_when_post_node_is_not_object():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [None],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+    )
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    with pytest.raises(ProductHuntError, match="invalid post node"):
+        client.fetch_posts_for_date("2026-05-10", limit=30)
+
+
+def test_fetch_posts_wraps_post_normalization_failure():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [
+                            {
+                                "id": "1",
+                                "media": [None],
+                            }
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+    )
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    with pytest.raises(ProductHuntError, match="post normalization failed"):
+        client.fetch_posts_for_date("2026-05-10", limit=30)

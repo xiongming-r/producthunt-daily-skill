@@ -125,7 +125,17 @@ class ProductHuntClient:
                     raise ProductHuntError(
                         "Product Hunt response data.posts.nodes must be a list"
                     )
-                products.extend(Product.from_api_node(node) for node in nodes)
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        raise ProductHuntError(
+                            "Product Hunt response contained invalid post node"
+                        )
+                    try:
+                        products.append(Product.from_api_node(node))
+                    except (AttributeError, TypeError, ValueError) as exc:
+                        raise ProductHuntError(
+                            f"Product Hunt post normalization failed: {exc}"
+                        ) from exc
 
                 page_info = posts.get("pageInfo")
                 if not isinstance(page_info, Mapping):
