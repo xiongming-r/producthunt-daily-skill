@@ -59,6 +59,8 @@ def test_render_daily_report_contains_enriched_sections():
     assert "# Product Hunt Daily Report - 2026-05-10" in report
     assert "Products fetched: 12" in report
     assert "### 1. Acme AI" in report
+    assert "#### 产品概述 / 它做什么" in report
+    assert "![Acme AI](https://ph-files.imgix.net/acme.png)" in report
     assert "Acme AI 会读取团队文档" in report
     assert "客服团队" in report
     assert "votes 512 >= 300" in report

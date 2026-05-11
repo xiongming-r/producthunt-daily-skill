@@ -49,7 +49,7 @@ def render_daily_report(
         ]
 
         if product.media_urls:
-            lines.append(f"- Media: {product.media_urls[0]}")
+            lines.append(f"![{product.name}]({product.media_urls[0]})")
 
         if enrichment is None:
             message = processed_product.enrichment_error or "No enrichment available"
@@ -58,25 +58,25 @@ def render_daily_report(
             lines.extend(
                 [
                     "",
-                    "#### Summary / What it does",
+                    "#### 产品概述 / 它做什么",
                     enrichment.summary_zh,
                     "",
-                    "#### Purpose",
+                    "#### 核心用途",
                     enrichment.purpose_zh,
                     "",
-                    "#### Target users",
+                    "#### 目标用户",
                     _bullet_list(enrichment.target_users_zh),
                     "",
-                    "#### Use cases",
+                    "#### 使用场景",
                     _bullet_list(enrichment.use_cases_zh),
                     "",
-                    "#### Example workflow",
+                    "#### 示例工作流",
                     _bullet_list(enrichment.example_workflow_zh),
                     "",
-                    "#### Why interesting",
+                    "#### 为什么值得关注",
                     enrichment.why_interesting_zh,
                     "",
-                    "#### Caveat",
+                    "#### 注意事项",
                     enrichment.caveat_zh,
                 ]
             )
