@@ -24,34 +24,38 @@ class Product:
 
     @classmethod
     def from_api_node(cls, node: dict[str, Any]) -> "Product":
+        media_nodes = node.get("media") or []
+        topic_nodes = (node.get("topics") or {}).get("nodes") or []
+        maker_nodes = (node.get("makers") or {}).get("nodes") or []
+
         media_urls = [
             media.get("url", "")
-            for media in node.get("media", [])
+            for media in media_nodes
             if media.get("url")
         ]
         topics = [
             topic.get("name", "")
-            for topic in node.get("topics", {}).get("nodes", [])
+            for topic in topic_nodes
             if topic.get("name")
         ]
         makers = [
             maker.get("name") or maker.get("username", "")
-            for maker in node.get("makers", {}).get("nodes", [])
+            for maker in maker_nodes
             if maker.get("name") or maker.get("username")
         ]
 
         return cls(
             id=str(node.get("id", "")),
-            name=node.get("name", ""),
-            tagline=node.get("tagline", ""),
-            description=node.get("description", ""),
+            name=node.get("name") or "",
+            tagline=node.get("tagline") or "",
+            description=node.get("description") or "",
             votes_count=int(node.get("votesCount") or 0),
             comments_count=int(node.get("commentsCount") or 0),
             daily_rank=node.get("dailyRank"),
-            created_at=node.get("createdAt", ""),
+            created_at=node.get("createdAt") or "",
             featured_at=node.get("featuredAt"),
-            website_url=node.get("website", ""),
-            product_hunt_url=node.get("url", ""),
+            website_url=node.get("website") or "",
+            product_hunt_url=node.get("url") or "",
             media_urls=media_urls,
             topics=topics,
             makers=makers,
