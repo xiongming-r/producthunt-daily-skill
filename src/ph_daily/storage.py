@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
 from typing import Any
 
@@ -26,14 +26,32 @@ def build_output_paths(output_dir: str, date: str) -> OutputPaths:
     )
 
 
+def _normalize_json_value(value: Any) -> Any:
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            field.name: _normalize_json_value(getattr(value, field.name))
+            for field in fields(value)
+        }
+    if isinstance(value, dict):
+        return {
+            key: _normalize_json_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list | tuple):
+        return [_normalize_json_value(item) for item in value]
+    return value
+
+
 def write_json(path: Path, payload: Any) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        data = asdict(payload) if is_dataclass(payload) else payload
+        data = _normalize_json_value(payload)
         path.write_text(
             json.dumps(data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+    except TypeError as exc:
+        raise OutputError(f"Failed to serialize JSON output for {path}: {exc}") from exc
     except OSError as exc:
         raise OutputError(f"Failed to write JSON output to {path}: {exc}") from exc
 

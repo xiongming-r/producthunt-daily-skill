@@ -1,6 +1,11 @@
+import json
+
+import pytest
+
+from ph_daily.errors import OutputError
 from ph_daily.models import FilterDecision, ProcessedProduct, Product, ProductEnrichment
 from ph_daily.report import render_daily_report
-from ph_daily.storage import build_output_paths
+from ph_daily.storage import build_output_paths, write_json
 
 
 def make_processed_product() -> ProcessedProduct:
@@ -65,3 +70,24 @@ def test_render_daily_report_contains_enriched_sections():
     assert "客服团队" in report
     assert "votes 512 >= 300" in report
     assert "帮助团队把分散的知识库转成可复用的客服答案" in report
+
+
+def test_write_json_serializes_nested_dataclasses(tmp_path):
+    path = tmp_path / "out.json"
+
+    write_json(path, {"products": [make_processed_product()]})
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["products"][0]["product"]["name"] == "Acme AI"
+    assert data["products"][0]["enrichment"]["summary_zh"] == (
+        "Acme AI 会读取团队文档，并自动草拟客服回复。"
+    )
+    assert data["products"][0]["enrichment"]["target_users_zh"] == [
+        "客服团队",
+        "运营负责人",
+    ]
+
+
+def test_write_json_wraps_serialization_type_error(tmp_path):
+    with pytest.raises(OutputError):
+        write_json(tmp_path / "out.json", object())
