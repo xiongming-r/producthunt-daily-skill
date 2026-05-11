@@ -4,9 +4,24 @@ from pathlib import Path
 import httpx
 import pytest
 
-from ph_daily.errors import LlmError
+from ph_daily.config import Settings
+from ph_daily.errors import ConfigError, LlmError
 from ph_daily.llm import LlmClient, parse_enrichment_json
 from ph_daily.models import Product, ProductEnrichment
+
+
+def make_settings(api_key: str = "llm-key") -> Settings:
+    return Settings(
+        product_hunt_token="ph-token",
+        llm_base_url="https://llm.example.com/v1",
+        llm_api_key=api_key,
+        llm_model="model-a",
+        min_votes=300,
+        comment_ratio=0.04,
+        min_comments=8,
+        output_dir=".",
+        http_timeout_seconds=5,
+    )
 
 
 def make_product() -> Product:
@@ -35,7 +50,7 @@ def test_parse_enrichment_json():
     enrichment = parse_enrichment_json(raw)
 
     assert enrichment == ProductEnrichment(
-        tagline_zh="结合上下文自动生成客服回复",
+        purpose_zh="结合上下文自动生成客服回复",
         summary_zh="Acme AI 会读取团队文档，并根据上下文起草客服回复。",
         target_users_zh=["客服团队", "SaaS 创始人", "需要减少重复答疑的运营团队"],
         use_cases_zh=["根据帮助文档回答用户问题", "把常见问题整理成客服草稿", "让新人客服更快理解产品"],
@@ -53,7 +68,7 @@ def test_parse_enrichment_json():
         "null",
         json.dumps(
             {
-                "tagline_zh": "结合上下文自动生成客服回复",
+                "purpose_zh": "结合上下文自动生成客服回复",
                 "summary_zh": None,
                 "target_users_zh": ["客服团队"],
                 "use_cases_zh": ["根据帮助文档回答用户问题"],
@@ -65,7 +80,7 @@ def test_parse_enrichment_json():
         ),
         json.dumps(
             {
-                "tagline_zh": "结合上下文自动生成客服回复",
+                "purpose_zh": "结合上下文自动生成客服回复",
                 "summary_zh": 123,
                 "target_users_zh": ["客服团队"],
                 "use_cases_zh": ["根据帮助文档回答用户问题"],
@@ -77,7 +92,7 @@ def test_parse_enrichment_json():
         ),
         json.dumps(
             {
-                "tagline_zh": "结合上下文自动生成客服回复",
+                "purpose_zh": "结合上下文自动生成客服回复",
                 "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
                 "target_users_zh": ["客服团队"],
                 "use_cases_zh": "根据帮助文档回答用户问题",
@@ -89,7 +104,7 @@ def test_parse_enrichment_json():
         ),
         json.dumps(
             {
-                "tagline_zh": "结合上下文自动生成客服回复",
+                "purpose_zh": "结合上下文自动生成客服回复",
                 "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
                 "target_users_zh": ["客服团队"],
                 "use_cases_zh": ["根据帮助文档回答用户问题", ""],
@@ -101,7 +116,7 @@ def test_parse_enrichment_json():
         ),
         json.dumps(
             {
-                "tagline_zh": "结合上下文自动生成客服回复",
+                "purpose_zh": "结合上下文自动生成客服回复",
                 "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
                 "target_users_zh": ["客服团队"],
                 "use_cases_zh": ["根据帮助文档回答用户问题", 42],
@@ -137,30 +152,45 @@ def test_enrich_product_calls_openai_compatible_endpoint():
             },
         )
 
-    client = LlmClient(
-        base_url="https://llm.example.com/v1",
-        api_key="llm-key",
-        model="model-a",
-        timeout_seconds=5,
-        transport=httpx.MockTransport(handler),
-    )
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
 
     enrichment = client.enrich_product(make_product())
 
     assert enrichment.summary_zh.startswith("Acme AI")
 
 
+def test_enrich_product_prompt_asks_for_explanatory_chinese_enrichment():
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        user_message = payload["messages"][1]["content"]
+        assert "解释" in user_message
+        assert "用途" in user_message
+        assert "使用场景" in user_message
+        assert "示例" in user_message
+        assert "不要只做文本翻译" in user_message
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": Path("tests/fixtures/llm_enrichment.json").read_text()
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
+
+    client.enrich_product(make_product())
+
+
 def test_enrich_product_wraps_non_json_response_body():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, text="not-json")
 
-    client = LlmClient(
-        base_url="https://llm.example.com/v1",
-        api_key="llm-key",
-        model="model-a",
-        timeout_seconds=5,
-        transport=httpx.MockTransport(handler),
-    )
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
 
     with pytest.raises(LlmError, match="LLM response body was not valid JSON"):
         client.enrich_product(make_product())
@@ -173,13 +203,7 @@ def test_enrich_product_rejects_none_message_content():
             json={"choices": [{"message": {"content": None}}]},
         )
 
-    client = LlmClient(
-        base_url="https://llm.example.com/v1",
-        api_key="llm-key",
-        model="model-a",
-        timeout_seconds=5,
-        transport=httpx.MockTransport(handler),
-    )
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
 
     with pytest.raises(LlmError, match="LLM response missing message content"):
         client.enrich_product(make_product())
@@ -192,13 +216,7 @@ def test_enrich_product_rejects_invalid_enrichment_schema():
             json={"choices": [{"message": {"content": "{}"}}]},
         )
 
-    client = LlmClient(
-        base_url="https://llm.example.com/v1",
-        api_key="llm-key",
-        model="model-a",
-        timeout_seconds=5,
-        transport=httpx.MockTransport(handler),
-    )
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
 
     with pytest.raises(LlmError, match="LLM response did not match enrichment schema"):
         client.enrich_product(make_product())
@@ -206,12 +224,9 @@ def test_enrich_product_rejects_invalid_enrichment_schema():
 
 def test_enrich_product_requires_api_key():
     client = LlmClient(
-        base_url="https://llm.example.com/v1",
-        api_key="",
-        model="model-a",
-        timeout_seconds=5,
+        make_settings(api_key=" "),
         transport=httpx.MockTransport(lambda request: httpx.Response(500)),
     )
 
-    with pytest.raises(LlmError, match="LLM_API_KEY is required for enrichment"):
+    with pytest.raises(ConfigError, match="LLM_API_KEY is required for enrichment"):
         client.enrich_product(make_product())

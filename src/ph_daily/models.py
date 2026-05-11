@@ -72,7 +72,7 @@ class FilterDecision:
 
 @dataclass(frozen=True)
 class ProductEnrichment:
-    tagline_zh: str
+    purpose_zh: str
     summary_zh: str
     target_users_zh: list[str]
     use_cases_zh: list[str]

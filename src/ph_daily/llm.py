@@ -5,7 +5,8 @@ from typing import Any
 
 import httpx
 
-from ph_daily.errors import LlmError
+from ph_daily.config import Settings
+from ph_daily.errors import ConfigError, LlmError
 from ph_daily.models import Product, ProductEnrichment
 
 
@@ -45,14 +46,6 @@ def _required_list(data: dict[str, Any], field: str) -> list[str]:
     return items
 
 
-def _required_tagline(data: dict[str, Any]) -> str:
-    if "tagline_zh" in data:
-        return _required_string(data, "tagline_zh")
-    if "purpose_zh" in data:
-        return _required_string(data, "purpose_zh")
-    raise _schema_error()
-
-
 def parse_enrichment_json(raw_content: str) -> ProductEnrichment:
     try:
         data = json.loads(raw_content)
@@ -61,11 +54,9 @@ def parse_enrichment_json(raw_content: str) -> ProductEnrichment:
 
     if not isinstance(data, dict):
         raise _schema_error()
-    if "purpose_zh" in data and not isinstance(data["purpose_zh"], str):
-        raise _schema_error()
 
     return ProductEnrichment(
-        tagline_zh=_required_tagline(data),
+        purpose_zh=_required_string(data, "purpose_zh"),
         summary_zh=_required_string(data, "summary_zh"),
         target_users_zh=_required_list(data, "target_users_zh"),
         use_cases_zh=_required_list(data, "use_cases_zh"),
@@ -78,21 +69,18 @@ def parse_enrichment_json(raw_content: str) -> ProductEnrichment:
 class LlmClient:
     def __init__(
         self,
-        base_url: str,
-        api_key: str,
-        model: str,
-        timeout_seconds: float,
+        settings: Settings,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.model = model
-        self.timeout_seconds = timeout_seconds
+        self.base_url = settings.llm_base_url.rstrip("/")
+        self.api_key = settings.llm_api_key.strip()
+        self.model = settings.llm_model
+        self.timeout_seconds = settings.http_timeout_seconds
         self.transport = transport
 
     def enrich_product(self, product: Product) -> ProductEnrichment:
         if not self.api_key:
-            raise LlmError("LLM_API_KEY is required for enrichment")
+            raise ConfigError("LLM_API_KEY is required for enrichment")
 
         prompt = self._build_prompt(product)
         payload = {
@@ -143,9 +131,9 @@ class LlmClient:
     def _build_prompt(product: Product) -> str:
         return json.dumps(
             {
-                "task": "把 Product Hunt 产品信息转成中文产品分析，解释用途、用户、场景和例子。",
+                "task": "把 Product Hunt 产品信息转成中文产品分析，解释用途、用户、使用场景和示例，不要只做文本翻译。",
                 "output_schema": {
-                    "tagline_zh": "自然中文 tagline",
+                    "purpose_zh": "解释产品核心用途，不是简单翻译 tagline",
                     "summary_zh": "一句话说明产品做什么",
                     "target_users_zh": ["目标用户1", "目标用户2"],
                     "use_cases_zh": ["具体使用场景1", "具体使用场景2"],
