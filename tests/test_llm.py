@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
+from ph_daily.errors import LlmError
 from ph_daily.llm import LlmClient, parse_enrichment_json
 from ph_daily.models import Product, ProductEnrichment
 
@@ -73,3 +75,51 @@ def test_enrich_product_calls_openai_compatible_endpoint():
     enrichment = client.enrich_product(make_product())
 
     assert enrichment.summary_zh.startswith("Acme AI")
+
+
+def test_enrich_product_wraps_non_json_response_body():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="not-json")
+
+    client = LlmClient(
+        base_url="https://llm.example.com/v1",
+        api_key="llm-key",
+        model="model-a",
+        timeout_seconds=5,
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(LlmError, match="LLM response body was not valid JSON"):
+        client.enrich_product(make_product())
+
+
+def test_enrich_product_rejects_none_message_content():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": None}}]},
+        )
+
+    client = LlmClient(
+        base_url="https://llm.example.com/v1",
+        api_key="llm-key",
+        model="model-a",
+        timeout_seconds=5,
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(LlmError, match="LLM response missing message content"):
+        client.enrich_product(make_product())
+
+
+def test_enrich_product_requires_api_key():
+    client = LlmClient(
+        base_url="https://llm.example.com/v1",
+        api_key="",
+        model="model-a",
+        timeout_seconds=5,
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+
+    with pytest.raises(LlmError, match="LLM_API_KEY is required for enrichment"):
+        client.enrich_product(make_product())

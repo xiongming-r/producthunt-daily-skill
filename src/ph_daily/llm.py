@@ -84,11 +84,17 @@ class LlmClient:
             except httpx.HTTPError as exc:
                 raise LlmError(f"LLM request failed: {exc}") from exc
 
-        data = response.json()
+        try:
+            data = response.json()
+        except json.JSONDecodeError as exc:
+            raise LlmError("LLM response body was not valid JSON") from exc
+
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise LlmError(f"LLM response missing message content: {data}") from exc
+        if not isinstance(content, str):
+            raise LlmError(f"LLM response missing message content: {data}")
 
         return parse_enrichment_json(content)
 
