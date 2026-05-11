@@ -1,0 +1,47 @@
+{
+  "data": {
+    "posts": {
+      "nodes": [
+        {
+          "id": "123",
+          "name": "Acme AI",
+          "tagline": "Automate support replies with context",
+          "description": "Acme AI reads your docs and drafts support answers.",
+          "votesCount": 512,
+          "commentsCount": 33,
+          "dailyRank": 4,
+          "createdAt": "2026-05-10T08:00:00Z",
+          "featuredAt": "2026-05-10T08:00:00Z",
+          "website": "https://example.com",
+          "url": "https://www.producthunt.com/posts/acme-ai",
+          "media": [
+            {
+              "url": "https://ph-files.imgix.net/acme.png",
+              "type": "image",
+              "videoUrl": null
+            }
+          ],
+          "topics": {
+            "nodes": [
+              {
+                "name": "Artificial Intelligence"
+              }
+            ]
+          },
+          "makers": {
+            "nodes": [
+              {
+                "name": "Jane Maker",
+                "username": "jane"
+              }
+            ]
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "cursor-1"
+      }
+    }
+  }
+}
