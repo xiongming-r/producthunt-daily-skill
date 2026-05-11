@@ -4,7 +4,7 @@
 
 构建一个自动化系统，每天从 Product Hunt 的 daily leaderboard 中收集高信号产品，过滤掉那些“票数很高但讨论很少、疑似刷票”的产品，并用中文生成更容易理解的产品说明。
 
-这个系统的重点不是简单翻译 Product Hunt 文案，而是解释产品到底能做什么、谁会用、在什么场景下有用，并给出具体案例。第一版要优先保证稳定、可复跑、方便放到云服务器上定时执行。Codex 自动化、Hermes、WorkBuddy、Qclaw 等现代 agent 工具可以参与调度、监控和补救，但核心采集逻辑不绑定任何单一 agent 平台。
+这个系统的重点不是简单翻译 Product Hunt 文案，而是解释产品到底能做什么、谁会用、在什么场景下有用，并给出具体案例。第一版要优先保证稳定、可复跑、方便放到云服务器上定时执行，同时参考已有开源项目，避免闭门重复造轮子。Codex 自动化、Hermes、WorkBuddy、Qclaw 等现代 agent 工具可以参与调度、监控和补救，但核心采集逻辑不绑定任何单一 agent 平台。
 
 ## 建设目标
 
@@ -13,22 +13,25 @@
 - 使用兼容 OpenAI 格式的大模型接口，对筛选后的产品进行中文翻译和用途解释。
 - 每天生成机器可读的 JSON 数据，以及适合人阅读的 Markdown 日报。
 - 在仓库中维护设计文档、实施计划和进度索引，确保每次继续开发时都能准确衔接。
+- 在实施前记录已评估开源项目和复用边界。
 - 支持未来由 Codex 自动化、Hermes、WorkBuddy、Qclaw 或普通服务器 cron 调度。
 
 ## 非目标
 
 - 第一版不做 Web Dashboard。
 - 默认不使用浏览器爬虫。
+- 第一版不直接 fork 整个开源项目。
 - 核心采集逻辑不依赖某一个特定 agent runtime。
 - 第一版不自动发送到社交媒体、邮件或聊天工具。
 - 不默认假设 Product Hunt API 可以商用。如果未来要做公开商业产品，需要先向 Product Hunt 确认授权。
 
 ## 推荐架构
 
-采用确定性的 Python CLI Worker，并拆成多个小而可测试的模块：
+采用参考开源项目后的确定性 Python CLI Worker，并拆成多个小而可测试的模块：
 
 ```text
-Product Hunt API
+开源项目评估记录
+  -> Product Hunt API
   -> 数据拉取器
   -> 数据标准化
   -> 动态讨论门槛过滤
@@ -49,6 +52,21 @@ ph-daily healthcheck
 
 这样做的好处是：Product Hunt 采集、筛选、报告生成都保持确定性；agent 系统可以自由负责调度、监控、重试和人机交互，不会把核心价值锁死在某一个工具里。
 
+## 开源复用策略
+
+第一版应参考相近开源项目，但不直接 fork 整个仓库。详细评估记录放在：
+
+- `docs/research/open-source-evaluation.md`
+- `docs/research/open-source-evaluation-zh.md`
+
+复用方向：
+
+- `ViggoZ/producthunt-daily-hot` 作为最接近的 Product Hunt GraphQL、每日自动化和 Markdown 输出参考。
+- `zdz72113/DayHot` 作为 scraper、translator、renderer 模块边界的参考。
+- `daimajia/huntscreens` 只作为未来截图式产品预览的灵感来源。
+
+如果后续复制或紧密改写开源代码，必须保留源项目的 license 和 attribution notice。没有明确 license 的仓库不能复制代码。
+
 ## 数据源
 
 主要数据源是 Product Hunt API v2 GraphQL，通过 `.env` 中的 bearer token 认证：
@@ -57,7 +75,7 @@ ph-daily healthcheck
 PRODUCT_HUNT_TOKEN=...
 ```
 
-Worker 应该为目标日期获取与 daily leaderboard 等价或接近的数据。具体 GraphQL query 可以在实施阶段根据 Product Hunt 当前 schema 验证后确定，但采集器至少需要保留以下字段：
+Worker 应该为目标日期获取与 daily leaderboard 等价或接近的数据。具体 GraphQL query 需要在实施阶段根据 Product Hunt 当前 schema 验证，并和已评估开源项目使用过的字段做对照。采集器至少需要保留以下字段：
 
 - Product Hunt id
 - 产品名称
@@ -66,6 +84,7 @@ Worker 应该为目标日期获取与 daily leaderboard 等价或接近的数据
 - 官网链接，如果 API 提供
 - 票数
 - 评论数
+- daily rank，如果 API 提供
 - 发布日期
 - topic 或分类，如果 API 提供
 - maker 信息，如果 API 提供
@@ -249,10 +268,11 @@ CLI 使用常规退出码：
 
 1. 加载 `.env` 配置。
 2. 运行 `healthcheck`。
-3. 从 Product Hunt API 获取目标日期数据。
-4. 标准化并筛选产品。
-5. 通过 OpenAI-compatible LLM endpoint 增强解释入选产品。
-6. 写出 raw JSON、processed JSON 和 Markdown 日报。
-7. 提供 cron 和 agent 调用方式的部署说明。
+3. 验证 Product Hunt GraphQL 字段是否符合当前 API schema 或真实查询结果。
+4. 从 Product Hunt API 获取目标日期数据。
+5. 标准化并筛选产品。
+6. 通过 OpenAI-compatible LLM endpoint 增强解释入选产品。
+7. 写出 raw JSON、processed JSON 和 Markdown 日报。
+8. 提供 cron 和 agent 调用方式的部署说明。
 
 完成这些就足够开始在云服务器上做每日采集。后续可以再扩展 Dashboard、通知系统或更复杂的反刷票启发式规则。

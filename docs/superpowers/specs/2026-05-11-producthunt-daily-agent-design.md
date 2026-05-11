@@ -4,7 +4,7 @@
 
 Build an automated system that collects high-signal products from Product Hunt's daily leaderboard, filters out products that look like vote-only noise, and generates Chinese explanations that help a reader quickly understand each product's actual use cases.
 
-The first version should be boringly reliable: a cloud-server-friendly command line worker that can run from cron. Modern agent tools can then trigger, monitor, and repair that worker without locking the project into any single agent platform.
+The first version should be boringly reliable and open-source-informed: a cloud-server-friendly command line worker that learns from nearby open source projects without forking an entire codebase. Modern agent tools can then trigger, monitor, and repair that worker without locking the project into any single agent platform.
 
 ## Goals
 
@@ -13,22 +13,25 @@ The first version should be boringly reliable: a cloud-server-friendly command l
 - Use an OpenAI-compatible LLM endpoint to translate and explain selected products in Chinese.
 - Generate both machine-readable JSON and human-readable Markdown daily reports.
 - Make the project easy to resume by maintaining design, plan, and progress documents in the repository.
+- Document evaluated open source projects and reuse boundaries before implementation.
 - Support future orchestration through Codex automations, Hermes, WorkBuddy, Qclaw, or plain server cron.
 
 ## Non-Goals
 
 - No web dashboard in the first version.
 - No browser scraping as the default data source.
+- No full fork of an existing open source project in the first version.
 - No dependency on a specific agent runtime for core collection logic.
 - No automatic posting to social media, email, or chat in the first version.
 - No paid/commercial Product Hunt workflow assumptions. Commercial API usage must be checked with Product Hunt before shipping as a public product.
 
 ## Recommended Architecture
 
-Use a deterministic Python CLI worker with small, testable modules:
+Use an open-source-informed deterministic Python CLI worker with small, testable modules:
 
 ```text
-Product Hunt API
+Open source research notes
+  -> Product Hunt API
   -> fetcher
   -> normalizer
   -> dynamic discussion filter
@@ -49,6 +52,21 @@ ph-daily healthcheck
 
 This keeps Product Hunt collection, filtering, and reporting deterministic while leaving agent systems free to handle scheduling, monitoring, retries, and human-facing interaction.
 
+## Open Source Reuse Strategy
+
+The implementation should reference, but not directly fork, nearby open source projects. The detailed evaluation lives in:
+
+- `docs/research/open-source-evaluation.md`
+- `docs/research/open-source-evaluation-zh.md`
+
+Reuse direction:
+
+- Use `ViggoZ/producthunt-daily-hot` as the closest reference for Product Hunt GraphQL access, daily automation, and Markdown output.
+- Use `zdz72113/DayHot` as a reference for scraper, translator, and renderer module boundaries.
+- Use `daimajia/huntscreens` only as future inspiration for screenshot-based product previews.
+
+If code is copied or closely adapted later, the implementation must preserve the source project's license and attribution notices. Code from repositories without a clear license must not be copied.
+
 ## Data Source
 
 The primary source is Product Hunt API v2 GraphQL, authenticated with a bearer token stored in `.env`:
@@ -57,7 +75,7 @@ The primary source is Product Hunt API v2 GraphQL, authenticated with a bearer t
 PRODUCT_HUNT_TOKEN=...
 ```
 
-The worker should fetch daily leaderboard-equivalent data for a target date. The exact query can be finalized during implementation after validating Product Hunt's current GraphQL schema, but the collector must capture at least:
+The worker should fetch daily leaderboard-equivalent data for a target date. The Product Hunt GraphQL query should be validated during implementation against the current schema and compared with fields used by the evaluated open source projects. The collector must capture at least:
 
 - Product Hunt id
 - product name
@@ -66,6 +84,7 @@ The worker should fetch daily leaderboard-equivalent data for a target date. The
 - website URL if available
 - votes count
 - comments count
+- daily rank if available
 - launch date
 - topics or categories if available
 - maker information if available
@@ -247,10 +266,11 @@ The first implementation plan should produce a working CLI that can:
 
 1. Load `.env` configuration.
 2. Run `healthcheck`.
-3. Fetch a target date from Product Hunt API.
-4. Normalize and filter products.
-5. Enrich selected products through an OpenAI-compatible LLM endpoint.
-6. Write raw JSON, processed JSON, and Markdown report.
-7. Provide deployment notes for cron and agent invocation.
+3. Validate Product Hunt GraphQL fields against the current API schema or a live query.
+4. Fetch a target date from Product Hunt API.
+5. Normalize and filter products.
+6. Enrich selected products through an OpenAI-compatible LLM endpoint.
+7. Write raw JSON, processed JSON, and Markdown report.
+8. Provide deployment notes for cron and agent invocation.
 
 That is enough to start daily collection on a cloud server and leaves the door open for dashboard, notifications, or richer anti-spam heuristics later.

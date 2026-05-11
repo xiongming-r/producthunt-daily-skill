@@ -2,17 +2,23 @@
 
 ## 当前阶段
 
-设计方向已经在对话中确认。当前的下一道关卡是：你需要审阅已经写好的设计文档。
+经过开源项目调研后，设计方向已经修订。当前的下一道关卡是：你需要审阅修订后的设计文档和开源评估记录。
 
 - 英文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - 中文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design-zh.md`
+- 英文开源评估：`docs/research/open-source-evaluation.md`
+- 中文开源评估：`docs/research/open-source-evaluation-zh.md`
 - 下一步：设计文档确认后，在 `docs/superpowers/plans/` 中创建详细实施计划。
 
 ## 关键决策
 
 - 使用 Product Hunt 官方 API v2 GraphQL 作为主要数据源。
 - Product Hunt token 放在 `.env` 中，不能提交到 git。
-- 第一版做成确定性的 Python CLI Worker，优先部署到云服务器，用 cron 定时运行。
+- 第一版做成参考开源项目后的确定性 Python CLI Worker，优先部署到云服务器，用 cron 定时运行。
+- 第一版不直接 fork 整个开源项目。
+- `ViggoZ/producthunt-daily-hot` 作为最接近的 Product Hunt API 和 GitHub Actions 参考。
+- `zdz72113/DayHot` 作为模块边界参考，不采用它的多源聚合大范围架构。
+- `daimajia/huntscreens` 只作为未来截图/视觉预览功能的灵感来源。
 - Codex 自动化、Hermes、WorkBuddy、Qclaw 等 agent 工具只负责调度、监控、失败补救和人机交互，不承载核心业务逻辑。
 - 大模型配置必须兼容 OpenAI 格式，通过 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 配置。
 - 每天输出 JSON 数据和适合人阅读的 Markdown 日报。
@@ -41,5 +47,6 @@ docs/superpowers/plans/
 ## 未完成关卡
 
 - [ ] 用户审阅并确认设计文档。
+- [ ] 用户审阅并确认开源项目评估记录。
 - [ ] 设计确认后创建实施计划。
 - [ ] 根据确认后的计划开始开发。
