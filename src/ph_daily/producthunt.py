@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
@@ -97,24 +98,47 @@ class ProductHuntClient:
                 except httpx.HTTPError as exc:
                     raise ProductHuntError(f"Product Hunt request failed: {exc}") from exc
 
-                data = response.json()
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise ProductHuntError(
+                        f"Product Hunt response was not valid JSON: {exc}"
+                    ) from exc
+
+                if not isinstance(data, dict):
+                    raise ProductHuntError("Product Hunt response must be a JSON object")
+
                 raw_payloads.append(data)
                 if data.get("errors"):
                     raise ProductHuntError(f"Product Hunt GraphQL error: {data['errors']}")
 
-                posts = data.get("data", {}).get("posts")
-                if not posts:
+                data_obj = data.get("data")
+                if not isinstance(data_obj, Mapping):
+                    raise ProductHuntError("Product Hunt response missing data")
+
+                posts = data_obj.get("posts")
+                if not isinstance(posts, Mapping):
                     raise ProductHuntError("Product Hunt response missing data.posts")
 
-                nodes = posts.get("nodes", [])
+                nodes = posts.get("nodes")
+                if not isinstance(nodes, list):
+                    raise ProductHuntError(
+                        "Product Hunt response data.posts.nodes must be a list"
+                    )
                 products.extend(Product.from_api_node(node) for node in nodes)
 
-                page_info = posts.get("pageInfo", {})
+                page_info = posts.get("pageInfo")
+                if not isinstance(page_info, Mapping):
+                    raise ProductHuntError(
+                        "Product Hunt response data.posts.pageInfo must be an object"
+                    )
                 if not page_info.get("hasNextPage"):
                     break
                 cursor = page_info.get("endCursor")
                 if not cursor:
-                    break
+                    raise ProductHuntError(
+                        "Product Hunt response missing pageInfo.endCursor"
+                    )
 
         products.sort(key=lambda item: item.votes_count, reverse=True)
         return products[:limit], raw_payloads
