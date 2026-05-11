@@ -45,6 +45,79 @@ def test_parse_enrichment_json():
     )
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "{}",
+        "[]",
+        "null",
+        json.dumps(
+            {
+                "tagline_zh": "结合上下文自动生成客服回复",
+                "summary_zh": None,
+                "target_users_zh": ["客服团队"],
+                "use_cases_zh": ["根据帮助文档回答用户问题"],
+                "example_workflow_zh": ["连接知识库"],
+                "why_interesting_zh": "它把知识库和客服回复结合。",
+                "caveat_zh": "需要看实际集成。",
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "tagline_zh": "结合上下文自动生成客服回复",
+                "summary_zh": 123,
+                "target_users_zh": ["客服团队"],
+                "use_cases_zh": ["根据帮助文档回答用户问题"],
+                "example_workflow_zh": ["连接知识库"],
+                "why_interesting_zh": "它把知识库和客服回复结合。",
+                "caveat_zh": "需要看实际集成。",
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "tagline_zh": "结合上下文自动生成客服回复",
+                "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
+                "target_users_zh": ["客服团队"],
+                "use_cases_zh": "根据帮助文档回答用户问题",
+                "example_workflow_zh": ["连接知识库"],
+                "why_interesting_zh": "它把知识库和客服回复结合。",
+                "caveat_zh": "需要看实际集成。",
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "tagline_zh": "结合上下文自动生成客服回复",
+                "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
+                "target_users_zh": ["客服团队"],
+                "use_cases_zh": ["根据帮助文档回答用户问题", ""],
+                "example_workflow_zh": ["连接知识库"],
+                "why_interesting_zh": "它把知识库和客服回复结合。",
+                "caveat_zh": "需要看实际集成。",
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "tagline_zh": "结合上下文自动生成客服回复",
+                "summary_zh": "Acme AI 会读取团队文档，并根据上下文起草客服回复。",
+                "target_users_zh": ["客服团队"],
+                "use_cases_zh": ["根据帮助文档回答用户问题", 42],
+                "example_workflow_zh": ["连接知识库"],
+                "why_interesting_zh": "它把知识库和客服回复结合。",
+                "caveat_zh": "需要看实际集成。",
+            },
+            ensure_ascii=False,
+        ),
+    ],
+)
+def test_parse_enrichment_json_rejects_schema_mismatches(raw):
+    with pytest.raises(LlmError, match="LLM response did not match enrichment schema"):
+        parse_enrichment_json(raw)
+
+
 def test_enrich_product_calls_openai_compatible_endpoint():
     def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "https://llm.example.com/v1/chat/completions"
@@ -109,6 +182,25 @@ def test_enrich_product_rejects_none_message_content():
     )
 
     with pytest.raises(LlmError, match="LLM response missing message content"):
+        client.enrich_product(make_product())
+
+
+def test_enrich_product_rejects_invalid_enrichment_schema():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "{}"}}]},
+        )
+
+    client = LlmClient(
+        base_url="https://llm.example.com/v1",
+        api_key="llm-key",
+        model="model-a",
+        timeout_seconds=5,
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(LlmError, match="LLM response did not match enrichment schema"):
         client.enrich_product(make_product())
 
 

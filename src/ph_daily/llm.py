@@ -9,12 +9,48 @@ from ph_daily.errors import LlmError
 from ph_daily.models import Product, ProductEnrichment
 
 
-def _ensure_list(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [str(item) for item in value]
-    if isinstance(value, str) and value.strip():
-        return [value.strip()]
-    return []
+SCHEMA_ERROR = "LLM response did not match enrichment schema"
+
+
+def _schema_error() -> LlmError:
+    return LlmError(SCHEMA_ERROR)
+
+
+def _required_string(data: dict[str, Any], field: str) -> str:
+    value = data.get(field)
+    if not isinstance(value, str):
+        raise _schema_error()
+    value = value.strip()
+    if not value:
+        raise _schema_error()
+    return value
+
+
+def _required_list(data: dict[str, Any], field: str) -> list[str]:
+    value = data.get(field)
+    if not isinstance(value, list):
+        raise _schema_error()
+
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise _schema_error()
+        item = item.strip()
+        if not item:
+            raise _schema_error()
+        items.append(item)
+
+    if not items:
+        raise _schema_error()
+    return items
+
+
+def _required_tagline(data: dict[str, Any]) -> str:
+    if "tagline_zh" in data:
+        return _required_string(data, "tagline_zh")
+    if "purpose_zh" in data:
+        return _required_string(data, "purpose_zh")
+    raise _schema_error()
 
 
 def parse_enrichment_json(raw_content: str) -> ProductEnrichment:
@@ -23,14 +59,19 @@ def parse_enrichment_json(raw_content: str) -> ProductEnrichment:
     except json.JSONDecodeError as exc:
         raise LlmError("LLM response was not valid JSON") from exc
 
+    if not isinstance(data, dict):
+        raise _schema_error()
+    if "purpose_zh" in data and not isinstance(data["purpose_zh"], str):
+        raise _schema_error()
+
     return ProductEnrichment(
-        tagline_zh=str(data.get("tagline_zh", "")),
-        summary_zh=str(data.get("summary_zh", "")),
-        target_users_zh=_ensure_list(data.get("target_users_zh")),
-        use_cases_zh=_ensure_list(data.get("use_cases_zh")),
-        example_workflow_zh=_ensure_list(data.get("example_workflow_zh")),
-        why_interesting_zh=str(data.get("why_interesting_zh", "")),
-        caveat_zh=str(data.get("caveat_zh", "")),
+        tagline_zh=_required_tagline(data),
+        summary_zh=_required_string(data, "summary_zh"),
+        target_users_zh=_required_list(data, "target_users_zh"),
+        use_cases_zh=_required_list(data, "use_cases_zh"),
+        example_workflow_zh=_required_list(data, "example_workflow_zh"),
+        why_interesting_zh=_required_string(data, "why_interesting_zh"),
+        caveat_zh=_required_string(data, "caveat_zh"),
     )
 
 
