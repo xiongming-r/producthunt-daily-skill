@@ -17,6 +17,8 @@ def test_product_from_api_node_normalizes_fields():
     assert product.votes_count == 512
     assert product.comments_count == 33
     assert product.daily_rank == 4
+    assert product.created_at == "2026-05-10T08:00:00Z"
+    assert product.featured_at == "2026-05-10T08:00:00Z"
     assert product.website_url == "https://example.com"
     assert product.product_hunt_url == "https://www.producthunt.com/posts/acme-ai"
     assert product.media_urls == ["https://ph-files.imgix.net/acme.png"]
