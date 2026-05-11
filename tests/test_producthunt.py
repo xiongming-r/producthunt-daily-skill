@@ -67,6 +67,78 @@ def test_fetch_posts_normalizes_products():
     assert raw_payloads[0]["data"]["posts"]["nodes"][0]["id"] == "123"
 
 
+def test_fetch_posts_sends_date_bounds_and_headers():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["variables"] = json.loads(request.content)["variables"]
+        captured["headers"] = request.headers
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    client.fetch_posts_for_date("2026-05-10", limit=30)
+
+    assert captured["variables"]["postedAfter"] == "2026-05-10T00:00:00Z"
+    assert captured["variables"]["postedBefore"] == "2026-05-10T23:59:59Z"
+    assert captured["headers"]["Authorization"] == "Bearer token-1"
+    assert captured["headers"]["Accept"] == "application/json"
+    assert captured["headers"]["Content-Type"].startswith("application/json")
+    assert captured["headers"]["User-Agent"] == "ph-daily-agent/0.1.0"
+
+
+def test_fetch_posts_applies_limit_after_vote_sorting():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [
+                            {
+                                "id": "1",
+                                "name": "Lower Vote Product",
+                                "votesCount": 10,
+                                "commentsCount": 1,
+                            },
+                            {
+                                "id": "2",
+                                "name": "Higher Vote Product",
+                                "votesCount": 90,
+                                "commentsCount": 2,
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+    )
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    products, _ = client.fetch_posts_for_date("2026-05-10", limit=1)
+
+    assert len(products) == 1
+    assert products[0].name == "Higher Vote Product"
+
+
 def test_fetch_posts_raises_on_graphql_errors():
     transport = httpx.MockTransport(
         lambda request: httpx.Response(200, json={"errors": [{"message": "bad query"}]})
@@ -270,3 +342,60 @@ def test_fetch_posts_wraps_post_normalization_failure():
 
     with pytest.raises(ProductHuntError, match="post normalization failed"):
         client.fetch_posts_for_date("2026-05-10", limit=30)
+
+
+def test_validate_fields_reports_sample_product_fields():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [
+                            {
+                                "id": "123",
+                                "name": "Acme AI",
+                                "votesCount": 512,
+                                "commentsCount": 33,
+                                "url": "https://www.producthunt.com/posts/acme-ai",
+                            }
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+    )
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    assert client.validate_fields() == {
+        "has_sample_product": True,
+        "has_votes_count": True,
+        "has_comments_count": True,
+        "has_product_hunt_url": True,
+    }
+
+
+def test_validate_fields_reports_no_sample_product():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+    )
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    assert client.validate_fields() == {"has_sample_product": False}
