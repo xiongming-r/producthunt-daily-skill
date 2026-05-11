@@ -209,6 +209,32 @@ def test_enrich_product_rejects_none_message_content():
         client.enrich_product(make_product())
 
 
+def test_enrich_product_rejects_missing_message_content_key():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {}}]},
+        )
+
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
+
+    with pytest.raises(LlmError, match="LLM response missing message content"):
+        client.enrich_product(make_product())
+
+
+def test_enrich_product_rejects_non_string_message_content():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": 123}}]},
+        )
+
+    client = LlmClient(make_settings(), transport=httpx.MockTransport(handler))
+
+    with pytest.raises(LlmError, match="LLM response missing message content"):
+        client.enrich_product(make_product())
+
+
 def test_enrich_product_rejects_invalid_enrichment_schema():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
