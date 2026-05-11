@@ -2,13 +2,14 @@
 
 ## 当前阶段
 
-经过开源项目调研后，设计方向已经修订。当前的下一道关卡是：你需要审阅修订后的设计文档和开源评估记录。
+实施计划已经创建。下一道关卡：选择执行方式，并按任务逐步开发。
 
 - 英文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - 中文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design-zh.md`
 - 英文开源评估：`docs/research/open-source-evaluation.md`
 - 中文开源评估：`docs/research/open-source-evaluation-zh.md`
-- 下一步：设计文档确认后，在 `docs/superpowers/plans/` 中创建详细实施计划。
+- 当前实施计划：`docs/superpowers/plans/2026-05-11-producthunt-daily-agent-collector.md`
+- 下一步：选择 subagent-driven 或 inline execution。
 
 ## 关键决策
 
@@ -46,7 +47,7 @@ docs/superpowers/plans/
 
 ## 未完成关卡
 
-- [ ] 用户审阅并确认设计文档。
-- [ ] 用户审阅并确认开源项目评估记录。
-- [ ] 设计确认后创建实施计划。
+- [x] 用户审阅并确认设计文档。
+- [x] 用户审阅并确认开源项目评估记录。
+- [x] 设计确认后创建实施计划。
 - [ ] 根据确认后的计划开始开发。

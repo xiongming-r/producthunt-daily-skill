@@ -2,11 +2,12 @@
 
 ## Current Stage
 
-Design has been revised after open source research. The next gate is user review of the revised spec and research notes:
+Implementation plan has been created. Next gate: choose execution mode and begin task-by-task implementation.
 
 - Spec: `docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - Research: `docs/research/open-source-evaluation.md`
-- Next required step: after spec review approval, create the implementation plan in `docs/superpowers/plans/`
+- Active plan: `docs/superpowers/plans/2026-05-11-producthunt-daily-agent-collector.md`
+- Next required step: choose subagent-driven or inline execution.
 
 ## Key Decisions
 
@@ -43,7 +44,7 @@ Generated data, reports, logs, and `.env` are ignored by git by default. Source 
 
 ## Open Gates
 
-- [ ] User reviews and approves written design spec.
-- [ ] User reviews and approves open source evaluation notes.
-- [ ] Implementation plan is created after spec approval.
+- [x] User reviews and approves written design spec.
+- [x] User reviews and approves open source evaluation notes.
+- [x] Implementation plan is created after spec approval.
 - [ ] Development starts from the approved plan.
