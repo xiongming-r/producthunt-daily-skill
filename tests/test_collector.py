@@ -3,7 +3,7 @@ import json
 import pytest
 
 from ph_daily.collector import Collector
-from ph_daily.config import Settings
+from ph_daily.config import QualitySettings, Settings
 from ph_daily.errors import ConfigError, LlmError
 from ph_daily.models import Product, ProductEnrichment
 
@@ -82,6 +82,12 @@ class LlmErrorFailingClient:
 
 
 def make_settings(tmp_path) -> Settings:
+    period_quality = {
+        "daily": QualitySettings(300, 0.04, 8, 42),
+        "weekly": QualitySettings(800, 0.035, 20, 150),
+        "monthly": QualitySettings(1000, 0.03, 40, 200),
+        "yearly": QualitySettings(5000, 0.02, 120, 300),
+    }
     return Settings(
         product_hunt_token="ph-token",
         llm_base_url="https://example.com/v1",
@@ -91,7 +97,15 @@ def make_settings(tmp_path) -> Settings:
         comment_ratio=0.04,
         min_comments=8,
         fetch_limit=42,
+        period_quality=period_quality,
         output_formats=("markdown",),
+        product_hunt_featured=None,
+        product_hunt_order="VOTES",
+        product_hunt_topic="",
+        product_hunt_url="",
+        product_hunt_twitter_url="",
+        include_keywords=(),
+        exclude_keywords=(),
         output_dir=str(tmp_path),
         http_timeout_seconds=10,
     )
@@ -212,7 +226,15 @@ def test_collect_writes_markdown_and_html_when_configured(tmp_path):
         comment_ratio=settings.comment_ratio,
         min_comments=settings.min_comments,
         fetch_limit=settings.fetch_limit,
+        period_quality=settings.period_quality,
         output_formats=("markdown", "html"),
+        product_hunt_featured=settings.product_hunt_featured,
+        product_hunt_order=settings.product_hunt_order,
+        product_hunt_topic=settings.product_hunt_topic,
+        product_hunt_url=settings.product_hunt_url,
+        product_hunt_twitter_url=settings.product_hunt_twitter_url,
+        include_keywords=settings.include_keywords,
+        exclude_keywords=settings.exclude_keywords,
         output_dir=settings.output_dir,
         http_timeout_seconds=settings.http_timeout_seconds,
     )

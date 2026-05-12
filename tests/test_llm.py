@@ -4,13 +4,19 @@ from pathlib import Path
 import httpx
 import pytest
 
-from ph_daily.config import Settings
+from ph_daily.config import QualitySettings, Settings
 from ph_daily.errors import ConfigError, LlmError
 from ph_daily.llm import LlmClient, parse_enrichment_json
 from ph_daily.models import Product, ProductEnrichment
 
 
 def make_settings(api_key: str = "llm-key") -> Settings:
+    period_quality = {
+        "daily": QualitySettings(300, 0.04, 8, 100),
+        "weekly": QualitySettings(800, 0.035, 20, 150),
+        "monthly": QualitySettings(1000, 0.03, 40, 200),
+        "yearly": QualitySettings(5000, 0.02, 120, 300),
+    }
     return Settings(
         product_hunt_token="ph-token",
         llm_base_url="https://llm.example.com/v1",
@@ -20,7 +26,15 @@ def make_settings(api_key: str = "llm-key") -> Settings:
         comment_ratio=0.04,
         min_comments=8,
         fetch_limit=100,
+        period_quality=period_quality,
         output_formats=("markdown",),
+        product_hunt_featured=None,
+        product_hunt_order="VOTES",
+        product_hunt_topic="",
+        product_hunt_url="",
+        product_hunt_twitter_url="",
+        include_keywords=(),
+        exclude_keywords=(),
         output_dir=".",
         http_timeout_seconds=5,
     )

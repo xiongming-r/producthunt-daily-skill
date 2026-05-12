@@ -1,6 +1,6 @@
 import pytest
 
-from ph_daily.config import Settings, load_settings
+from ph_daily.config import load_settings
 from ph_daily.errors import ConfigError
 
 
@@ -23,19 +23,25 @@ def test_load_settings_from_environment(monkeypatch):
 
     settings = load_settings(load_dotenv_file=False)
 
-    assert settings == Settings(
-        product_hunt_token="ph-token",
-        llm_base_url="https://example.com/v1",
-        llm_api_key="llm-key",
-        llm_model="model-a",
-        min_votes=300,
-        comment_ratio=0.04,
-        min_comments=8,
-        fetch_limit=125,
-        output_formats=("markdown",),
-        output_dir="/tmp/ph-daily",
-        http_timeout_seconds=15.0,
-    )
+    assert settings.product_hunt_token == "ph-token"
+    assert settings.llm_base_url == "https://example.com/v1"
+    assert settings.llm_api_key == "llm-key"
+    assert settings.llm_model == "model-a"
+    assert settings.min_votes == 300
+    assert settings.comment_ratio == 0.04
+    assert settings.min_comments == 8
+    assert settings.fetch_limit == 125
+    assert settings.output_formats == ("markdown",)
+    assert settings.output_dir == "/tmp/ph-daily"
+    assert settings.http_timeout_seconds == 15.0
+    assert settings.quality_for_period("daily").min_votes == 300
+    assert settings.quality_for_period("weekly").min_votes == 800
+    assert settings.quality_for_period("monthly").min_votes == 1000
+    assert settings.quality_for_period("yearly").min_votes == 5000
+    assert settings.product_hunt_order == "VOTES"
+    assert settings.product_hunt_featured is None
+    assert settings.include_keywords == ()
+    assert settings.exclude_keywords == ()
 
 
 def test_missing_product_hunt_token_fails(monkeypatch):
@@ -67,6 +73,50 @@ def test_invalid_fetch_limit_fails(monkeypatch):
     monkeypatch.setenv("FETCH_LIMIT", "0")
 
     with pytest.raises(ConfigError, match="FETCH_LIMIT must be at least 1"):
+        load_settings(load_dotenv_file=False)
+
+
+def test_period_specific_quality_settings(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("MONTHLY_MIN_VOTES", "1200")
+    monkeypatch.setenv("YEARLY_FETCH_LIMIT", "350")
+
+    settings = load_settings(load_dotenv_file=False)
+
+    monthly = settings.quality_for_period("monthly")
+    yearly = settings.quality_for_period("yearly")
+    assert monthly.min_votes == 1200
+    assert monthly.min_comments == 40
+    assert yearly.min_votes == 5000
+    assert yearly.fetch_limit == 350
+
+
+def test_product_hunt_filter_settings(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("PRODUCT_HUNT_FEATURED", "true")
+    monkeypatch.setenv("PRODUCT_HUNT_ORDER", "FEATURED_AT")
+    monkeypatch.setenv("PRODUCT_HUNT_TOPIC", "artificial-intelligence")
+    monkeypatch.setenv("PRODUCT_HUNT_URL", "https://example.com")
+    monkeypatch.setenv("PRODUCT_HUNT_TWITTER_URL", "https://x.com/example")
+    monkeypatch.setenv("INCLUDE_KEYWORDS", " AI, agent ")
+    monkeypatch.setenv("EXCLUDE_KEYWORDS", " crypto ")
+
+    settings = load_settings(load_dotenv_file=False)
+
+    assert settings.product_hunt_featured is True
+    assert settings.product_hunt_order == "FEATURED_AT"
+    assert settings.product_hunt_topic == "artificial-intelligence"
+    assert settings.product_hunt_url == "https://example.com"
+    assert settings.product_hunt_twitter_url == "https://x.com/example"
+    assert settings.include_keywords == ("ai", "agent")
+    assert settings.exclude_keywords == ("crypto",)
+
+
+def test_invalid_product_hunt_order_fails(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("PRODUCT_HUNT_ORDER", "POPULAR")
+
+    with pytest.raises(ConfigError, match="PRODUCT_HUNT_ORDER must be one of"):
         load_settings(load_dotenv_file=False)
 
 
