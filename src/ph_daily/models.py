@@ -26,7 +26,11 @@ class Product:
     def from_api_node(cls, node: dict[str, Any]) -> "Product":
         media_nodes = node.get("media") or []
         topic_nodes = (node.get("topics") or {}).get("nodes") or []
-        maker_nodes = (node.get("makers") or {}).get("nodes") or []
+        raw_makers = node.get("makers") or []
+        if isinstance(raw_makers, dict):
+            maker_nodes = raw_makers.get("nodes") or []
+        else:
+            maker_nodes = raw_makers
 
         media_urls = [
             media.get("url", "")

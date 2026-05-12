@@ -59,10 +59,8 @@ class ProductHuntClient:
                 }
               }
               makers {
-                nodes {
-                  name
-                  username
-                }
+                name
+                username
               }
             }
             pageInfo {

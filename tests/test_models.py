@@ -56,3 +56,13 @@ def test_product_from_api_node_handles_null_and_missing_fields():
     assert product.media_urls == []
     assert product.topics == []
     assert product.makers == []
+
+
+def test_product_from_api_node_handles_legacy_maker_connection_shape():
+    product = Product.from_api_node({
+        "id": "789",
+        "name": "Legacy Makers",
+        "makers": {"nodes": [{"name": "Jane Maker"}, {"username": "anon"}]},
+    })
+
+    assert product.makers == ["Jane Maker", "anon"]

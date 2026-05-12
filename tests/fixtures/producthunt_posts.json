@@ -28,14 +28,12 @@
               }
             ]
           },
-          "makers": {
-            "nodes": [
-              {
-                "name": "Jane Maker",
-                "username": "jane"
-              }
-            ]
-          }
+          "makers": [
+            {
+              "name": "Jane Maker",
+              "username": "jane"
+            }
+          ]
         }
       ],
       "pageInfo": {

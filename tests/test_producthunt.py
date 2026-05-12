@@ -16,6 +16,7 @@ def test_build_posts_query_contains_required_fields():
     assert "media" in query
     assert "topics" in query
     assert "makers" in query
+    assert "makers {\n                nodes" not in query
 
 
 def test_fetch_posts_normalizes_products():
@@ -43,7 +44,7 @@ def test_fetch_posts_normalizes_products():
                                 "url": "https://www.producthunt.com/posts/acme-ai",
                                 "media": [],
                                 "topics": {"nodes": []},
-                                "makers": {"nodes": []},
+                                "makers": [],
                             }
                         ],
                         "pageInfo": {
