@@ -9,6 +9,17 @@ def _bullet_list(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
+def friendly_enrichment_error(error: str | None) -> str:
+    if not error:
+        return "AI 解读失败：没有可用的错误信息。"
+    if "timed out" in error.lower() or "timeout" in error.lower():
+        return (
+            "AI 解读失败：LLM 响应超时。"
+            "建议稍后重试，或调高 HTTP_TIMEOUT_SECONDS。"
+        )
+    return "AI 解读失败：请查看 processed JSON 中的详细错误信息。"
+
+
 def render_daily_report(
     date: str,
     fetched_count: int,
@@ -20,20 +31,26 @@ def render_daily_report(
         for processed_product in processed_products
         if processed_product.filter_decision.passed
     ]
+    enrichment_success_count = sum(
+        1 for item in selected_products if item.enrichment is not None
+    )
+    enrichment_failure_count = len(selected_products) - enrichment_success_count
 
     sections = [
-        f"# Product Hunt Daily Report - {date}",
-        "## Summary",
-        f"Products fetched: {fetched_count}",
-        f"Products passing filters: {len(selected_products)}",
-        f"Filter rule: `{filter_rule}`",
+        f"# Product Hunt 每日精选 - {date}",
+        "## 概览",
+        f"- 抓取产品数：{fetched_count}",
+        f"- 入选产品数：{len(selected_products)}",
+        f"- AI 解读成功：{enrichment_success_count}",
+        f"- AI 解读失败：{enrichment_failure_count}",
+        f"- 筛选规则：`{filter_rule}`",
     ]
 
     if not selected_products:
-        sections.append("No products passed the filter today.")
+        sections.append("今天没有产品通过筛选。")
         return "\n\n".join(sections) + "\n"
 
-    sections.append("## Products")
+    sections.append("## 入选产品")
 
     for index, processed_product in enumerate(selected_products, start=1):
         product = processed_product.product
@@ -42,18 +59,18 @@ def render_daily_report(
 
         lines = [
             f"### {index}. {product.name}",
-            f"- Product Hunt: {product.product_hunt_url}",
-            f"- Website: {website_url}",
-            f"- Votes/comments: {product.votes_count}/{product.comments_count}",
-            f"- Filter reason: {processed_product.filter_decision.reason}",
+            f"- Product Hunt 页面：{product.product_hunt_url}",
+            f"- 官网 / 跳转链接：{website_url}",
+            f"- 票数 / 评论数：{product.votes_count}/{product.comments_count}",
+            f"- 筛选原因：{processed_product.filter_decision.reason}",
         ]
 
         if product.media_urls:
             lines.append(f"![{product.name}]({product.media_urls[0]})")
 
         if enrichment is None:
-            message = processed_product.enrichment_error or "No enrichment available"
-            lines.extend(["", "#### Enrichment", message])
+            message = friendly_enrichment_error(processed_product.enrichment_error)
+            lines.extend(["", "#### AI 解读状态", message])
         else:
             lines.extend(
                 [

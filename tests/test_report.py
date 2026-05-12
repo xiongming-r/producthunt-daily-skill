@@ -62,8 +62,11 @@ def test_render_daily_report_contains_enriched_sections():
         filter_rule="votes >= 300 and comments_count >= max(8, ceil(votes * 0.04))",
     )
 
-    assert "# Product Hunt Daily Report - 2026-05-10" in report
-    assert "Products fetched: 12" in report
+    assert "# Product Hunt 每日精选 - 2026-05-10" in report
+    assert "抓取产品数：12" in report
+    assert "入选产品数：1" in report
+    assert "AI 解读成功：1" in report
+    assert "AI 解读失败：0" in report
     assert "### 1. Acme AI" in report
     assert "#### 产品概述 / 它做什么" in report
     assert "![Acme AI](https://ph-files.imgix.net/acme.png)" in report
@@ -71,6 +74,29 @@ def test_render_daily_report_contains_enriched_sections():
     assert "客服团队" in report
     assert "votes 512 >= 300" in report
     assert "帮助团队把分散的知识库转成可复用的客服答案" in report
+
+
+def test_render_daily_report_uses_friendly_enrichment_error():
+    product = make_processed_product()
+    failed_product = ProcessedProduct(
+        product=product.product,
+        filter_decision=product.filter_decision,
+        enrichment=None,
+        enrichment_error="LLM request failed: error=The read operation timed out",
+    )
+
+    report = render_daily_report(
+        date="2026-05-10",
+        fetched_count=1,
+        processed_products=[failed_product],
+        filter_rule="votes >= 300",
+    )
+
+    assert "AI 解读成功：0" in report
+    assert "AI 解读失败：1" in report
+    assert "#### AI 解读状态" in report
+    assert "AI 解读失败：LLM 响应超时" in report
+    assert "LLM request failed" not in report
 
 
 def test_write_json_serializes_nested_dataclasses(tmp_path):
