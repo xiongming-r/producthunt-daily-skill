@@ -2,12 +2,14 @@
 
 ## Current Stage
 
-Implementation plan has been created. Next gate: choose execution mode and begin task-by-task implementation.
+Implementation is in progress on branch `feat/producthunt-daily-agent-collector`. Tasks 1-9 are complete and reviewed. Task 10 deployment and agent integration documentation is complete in this update. Next gate: Task 11 live integration verification, then final review.
 
 - Spec: `docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - Research: `docs/research/open-source-evaluation.md`
 - Active plan: `docs/superpowers/plans/2026-05-11-producthunt-daily-agent-collector.md`
-- Next required step: choose subagent-driven or inline execution.
+- Deployment docs: `docs/deployment-zh.md`
+- Agent integration docs: `docs/agent-integration-zh.md`
+- Next required step: Task 11 live integration verification.
 
 ## Key Decisions
 
@@ -35,6 +37,8 @@ data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
 logs/YYYY-MM-DD.log
+docs/deployment-zh.md
+docs/agent-integration-zh.md
 docs/progress.md
 docs/superpowers/specs/
 docs/superpowers/plans/
@@ -47,4 +51,8 @@ Generated data, reports, logs, and `.env` are ignored by git by default. Source 
 - [x] User reviews and approves written design spec.
 - [x] User reviews and approves open source evaluation notes.
 - [x] Implementation plan is created after spec approval.
-- [ ] Development starts from the approved plan.
+- [x] Development starts from the approved plan.
+- [x] Tasks 1-9 are complete and reviewed.
+- [x] Task 10 deployment and agent integration docs are completed.
+- [ ] Task 11 live integration verification is completed.
+- [ ] Final review is completed.
