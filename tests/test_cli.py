@@ -5,7 +5,7 @@ import pytest
 
 import ph_daily.cli as cli
 from ph_daily.cli import parse_date_arg, run
-from ph_daily.errors import ExitCode
+from ph_daily.errors import ConfigError, ExitCode
 
 
 def test_parse_date_arg_accepts_explicit_date():
@@ -23,24 +23,35 @@ def test_parse_date_arg_rejects_non_padded_dates(value):
         parse_date_arg(value)
 
 
-def test_healthcheck_returns_config_error_without_token(monkeypatch):
-    monkeypatch.delenv("PRODUCT_HUNT_TOKEN", raising=False)
+def test_healthcheck_returns_config_error_without_token(monkeypatch, capsys):
+    def fail_load_settings():
+        raise ConfigError("PRODUCT_HUNT_TOKEN is required")
 
-    assert run(["healthcheck"]) == ExitCode.CONFIG_ERROR
+    monkeypatch.setattr(cli, "load_settings", fail_load_settings)
+
+    exit_code = run(["healthcheck"])
+
+    captured = capsys.readouterr()
+    assert exit_code == ExitCode.CONFIG_ERROR
+    assert "Error: PRODUCT_HUNT_TOKEN is required" in captured.err
 
 
 def test_backfill_zero_days_returns_config_error(monkeypatch):
-    monkeypatch.setenv("PRODUCT_HUNT_TOKEN", "ph-token")
-    monkeypatch.setenv("LLM_BASE_URL", "https://example.com/v1")
-    monkeypatch.setenv("LLM_API_KEY", "llm-key")
-    monkeypatch.setenv("LLM_MODEL", "model-a")
-    monkeypatch.setenv("MIN_VOTES", "300")
-    monkeypatch.setenv("COMMENT_RATIO", "0.04")
-    monkeypatch.setenv("MIN_COMMENTS", "8")
-    monkeypatch.setenv("OUTPUT_DIR", "/tmp/ph-daily")
-    monkeypatch.setenv("HTTP_TIMEOUT_SECONDS", "15")
+    def fail_load_settings():
+        raise AssertionError("load_settings should not be called")
+
+    monkeypatch.setattr(cli, "load_settings", fail_load_settings)
 
     assert run(["backfill", "--days", "0"]) == ExitCode.CONFIG_ERROR
+
+
+def test_collect_invalid_date_returns_config_error_before_loading_settings(monkeypatch):
+    def fail_load_settings():
+        raise AssertionError("load_settings should not be called")
+
+    monkeypatch.setattr(cli, "load_settings", fail_load_settings)
+
+    assert run(["collect", "--date", "2026/05/10"]) == ExitCode.CONFIG_ERROR
 
 
 def test_collect_prints_counts_and_report_path(monkeypatch, capsys):

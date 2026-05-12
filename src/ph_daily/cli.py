@@ -53,6 +53,12 @@ def run(argv: list[str] | None = None) -> ExitCode:
     args = parser.parse_args(argv)
 
     try:
+        target_date = None
+        if args.command == "collect":
+            target_date = parse_date_arg(args.date)
+        elif args.command == "backfill" and args.days < 1:
+            raise ValueError("--days must be at least 1")
+
         settings = load_settings()
 
         if args.command == "healthcheck":
@@ -61,13 +67,10 @@ def run(argv: list[str] | None = None) -> ExitCode:
 
         collector = Collector(settings)
         if args.command == "collect":
-            result = collector.collect(parse_date_arg(args.date))
+            result = collector.collect(target_date)
             print(f"Selected {result.selected_count}/{result.fetched_count} products")
             print(f"Report: {result.paths.markdown_report}")
             return ExitCode.SUCCESS
-
-        if args.days < 1:
-            raise ValueError("--days must be at least 1")
 
         for days_ago in range(1, args.days + 1):
             target_date = (date.today() - timedelta(days=days_ago)).isoformat()
