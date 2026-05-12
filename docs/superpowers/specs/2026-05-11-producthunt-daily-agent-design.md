@@ -73,6 +73,7 @@ The primary source is Product Hunt API v2 GraphQL, authenticated with a bearer t
 
 ```env
 PRODUCT_HUNT_TOKEN=...
+FETCH_LIMIT=100
 ```
 
 The worker should fetch daily leaderboard-equivalent data for a target date. The Product Hunt GraphQL query should be validated during implementation against the current schema and compared with fields used by the evaluated open source projects. The collector must capture at least:
@@ -91,6 +92,7 @@ The worker should fetch daily leaderboard-equivalent data for a target date. The
 - raw API payload for traceability
 
 If the API cannot provide the same ordering as the public daily leaderboard, the worker should fetch posts for the target date, sort or filter locally by votes, and record the method used in the raw metadata.
+`FETCH_LIMIT` controls the number of candidate posts retrieved before local filtering.
 
 ## Filtering
 

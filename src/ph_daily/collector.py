@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ph_daily.config import Settings
+from ph_daily.errors import ConfigError, LlmError
 from ph_daily.llm import LlmClient
 from ph_daily.models import ProcessedProduct, Product, ProductEnrichment
 from ph_daily.producthunt import ProductHuntClient
@@ -14,7 +15,7 @@ from ph_daily.storage import OutputPaths, build_output_paths, write_json, write_
 
 class ProductHuntClientProtocol(Protocol):
     def fetch_posts_for_date(
-        self, date: str, limit: int = 30
+        self, date: str, limit: int = 100
     ) -> tuple[list[Product], list[dict[str, Any]]]:
         ...
 
@@ -49,10 +50,11 @@ class Collector:
     def collect(self, date: str) -> CollectionResult:
         products, raw_payloads = self.product_hunt_client.fetch_posts_for_date(
             date,
-            limit=30,
+            limit=self.settings.fetch_limit,
         )
 
         processed_products: list[ProcessedProduct] = []
+        successful_enrichments = 0
         for product in products:
             filter_decision = evaluate_product(
                 product,
@@ -66,7 +68,10 @@ class Collector:
             if filter_decision.passed:
                 try:
                     enrichment = self.llm_client.enrich_product(product)
-                except Exception as exc:  # noqa: BLE001 - one bad enrichment must not fail collection.
+                    successful_enrichments += 1
+                except ConfigError:
+                    raise
+                except LlmError as exc:
                     enrichment_error = str(exc)
 
             processed_products.append(
@@ -77,6 +82,13 @@ class Collector:
                     enrichment_error=enrichment_error,
                 )
             )
+
+        selected_count = sum(
+            processed_product.filter_decision.passed
+            for processed_product in processed_products
+        )
+        if selected_count and successful_enrichments == 0:
+            raise LlmError("No selected products could be enriched")
 
         paths = build_output_paths(self.settings.output_dir, date)
         filter_rule = self._filter_rule()
@@ -107,10 +119,6 @@ class Collector:
         write_json(paths.processed_json, processed_payload)
         write_text(paths.markdown_report, report)
 
-        selected_count = sum(
-            processed_product.filter_decision.passed
-            for processed_product in processed_products
-        )
         return CollectionResult(
             date=date,
             fetched_count=len(products),

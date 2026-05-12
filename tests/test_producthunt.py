@@ -210,11 +210,26 @@ def test_fetch_posts_paginates_with_end_cursor():
 
 
 def test_fetch_posts_raises_on_http_status_failure():
-    transport = httpx.MockTransport(lambda request: httpx.Response(500))
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            text="server failed while using token token-1",
+            request=request,
+        )
+
+    transport = httpx.MockTransport(handler)
     client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
 
-    with pytest.raises(ProductHuntError, match="Product Hunt request failed"):
+    with pytest.raises(ProductHuntError) as exc_info:
         client.fetch_posts_for_date("2026-05-10", limit=30)
+
+    message = str(exc_info.value)
+    assert "Product Hunt request failed" in message
+    assert "date=2026-05-10" in message
+    assert "endpoint=https://api.producthunt.com/v2/api/graphql" in message
+    assert "status=500" in message
+    assert "server failed" in message
+    assert "token-1" not in message
 
 
 def test_fetch_posts_raises_on_malformed_json():

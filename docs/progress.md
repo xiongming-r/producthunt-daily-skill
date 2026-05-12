@@ -42,6 +42,7 @@ Next gate: add a valid `PRODUCT_HUNT_TOKEN` in the local environment or `.env`, 
   - `MIN_VOTES=300`
   - `COMMENT_RATIO=0.04`
   - `MIN_COMMENTS=8`
+- Default Product Hunt fetch limit: `FETCH_LIMIT=100`.
 
 ## Planned Artifact Layout
 

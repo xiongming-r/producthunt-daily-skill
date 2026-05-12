@@ -1,7 +1,10 @@
 import json
 
+import pytest
+
 from ph_daily.collector import Collector
 from ph_daily.config import Settings
+from ph_daily.errors import ConfigError, LlmError
 from ph_daily.models import Product, ProductEnrichment
 
 
@@ -26,14 +29,19 @@ def make_product(name: str, votes: int, comments: int) -> Product:
 
 
 class FakeProductHuntClient:
+    def __init__(self, products: list[Product] | None = None) -> None:
+        self.products = products or [
+            make_product("Pass Product", votes=500, comments=25),
+            make_product("Fail Product", votes=1000, comments=2),
+        ]
+        self.calls: list[tuple[str, int]] = []
+
     def fetch_posts_for_date(
         self, date: str, limit: int = 30
     ) -> tuple[list[Product], list[dict[str, object]]]:
+        self.calls.append((date, limit))
         return (
-            [
-                make_product("Pass Product", votes=500, comments=25),
-                make_product("Fail Product", votes=1000, comments=2),
-            ],
+            self.products,
             [{"data": {"posts": {"nodes": ["raw-node"]}}, "date": date, "limit": limit}],
         )
 
@@ -53,7 +61,24 @@ class FakeLlmClient:
 
 class FailingLlmClient:
     def enrich_product(self, product: Product) -> ProductEnrichment:
-        raise RuntimeError(f"boom for {product.name}")
+        raise LlmError(f"boom for {product.name}")
+
+
+class SelectiveLlmClient:
+    def enrich_product(self, product: Product) -> ProductEnrichment:
+        if product.name == "First Product":
+            raise LlmError(f"temporary failure for {product.name}")
+        return FakeLlmClient().enrich_product(product)
+
+
+class ConfigFailingLlmClient:
+    def enrich_product(self, product: Product) -> ProductEnrichment:
+        raise ConfigError("LLM_API_KEY is required")
+
+
+class LlmErrorFailingClient:
+    def enrich_product(self, product: Product) -> ProductEnrichment:
+        raise LlmError(f"upstream failed for {product.name}")
 
 
 def make_settings(tmp_path) -> Settings:
@@ -65,20 +90,23 @@ def make_settings(tmp_path) -> Settings:
         min_votes=300,
         comment_ratio=0.04,
         min_comments=8,
+        fetch_limit=42,
         output_dir=str(tmp_path),
         http_timeout_seconds=10,
     )
 
 
 def test_collect_writes_raw_processed_and_report(tmp_path):
+    ph_client = FakeProductHuntClient()
     collector = Collector(
         settings=make_settings(tmp_path),
-        product_hunt_client=FakeProductHuntClient(),
+        product_hunt_client=ph_client,
         llm_client=FakeLlmClient(),
     )
 
     result = collector.collect("2026-05-10")
 
+    assert ph_client.calls == [("2026-05-10", 42)]
     assert result.fetched_count == 2
     assert result.selected_count == 1
     assert result.paths.raw_json.exists()
@@ -93,7 +121,7 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
     assert raw_data["date"] == "2026-05-10"
     assert raw_data["source"] == "producthunt_api_v2_graphql"
     assert raw_data["raw_payloads"] == [
-        {"data": {"posts": {"nodes": ["raw-node"]}}, "date": "2026-05-10", "limit": 30}
+        {"data": {"posts": {"nodes": ["raw-node"]}}, "date": "2026-05-10", "limit": 42}
     ]
     assert [product["name"] for product in raw_data["products"]] == [
         "Pass Product",
@@ -111,25 +139,61 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
     assert processed_data["products"][1]["enrichment"] is None
 
 
-def test_collect_keeps_selected_product_when_enrichment_fails(tmp_path):
+def test_collect_raises_when_only_selected_product_fails_enrichment(tmp_path):
     collector = Collector(
         settings=make_settings(tmp_path),
         product_hunt_client=FakeProductHuntClient(),
         llm_client=FailingLlmClient(),
     )
 
+    with pytest.raises(LlmError, match="No selected products could be enriched"):
+        collector.collect("2026-05-10")
+
+
+def test_collect_propagates_enrichment_config_error(tmp_path):
+    collector = Collector(
+        settings=make_settings(tmp_path),
+        product_hunt_client=FakeProductHuntClient(),
+        llm_client=ConfigFailingLlmClient(),
+    )
+
+    with pytest.raises(ConfigError, match="LLM_API_KEY is required"):
+        collector.collect("2026-05-10")
+
+
+def test_collect_allows_partial_selected_product_llm_failures(tmp_path):
+    products = [
+        make_product("First Product", votes=500, comments=25),
+        make_product("Second Product", votes=600, comments=30),
+    ]
+    collector = Collector(
+        settings=make_settings(tmp_path),
+        product_hunt_client=FakeProductHuntClient(products=products),
+        llm_client=SelectiveLlmClient(),
+    )
+
     result = collector.collect("2026-05-10")
 
-    assert result.fetched_count == 2
-    assert result.selected_count == 1
-
+    assert result.selected_count == 2
     processed_data = json.loads(result.paths.processed_json.read_text(encoding="utf-8"))
-    selected_product = processed_data["products"][0]
-    assert selected_product["product"]["name"] == "Pass Product"
-    assert selected_product["filter_decision"]["passed"] is True
-    assert selected_product["enrichment"] is None
-    assert selected_product["enrichment_error"] == "boom for Pass Product"
+    assert processed_data["products"][0]["enrichment"] is None
+    assert (
+        processed_data["products"][0]["enrichment_error"]
+        == "temporary failure for First Product"
+    )
+    assert processed_data["products"][1]["enrichment"]["purpose_zh"] == "有用产品"
 
-    report = result.paths.markdown_report.read_text(encoding="utf-8")
-    assert "### 1. Pass Product" in report
-    assert "boom for Pass Product" in report
+
+def test_collect_raises_when_all_selected_products_fail_enrichment(tmp_path):
+    products = [
+        make_product("First Product", votes=500, comments=25),
+        make_product("Second Product", votes=600, comments=30),
+    ]
+    collector = Collector(
+        settings=make_settings(tmp_path),
+        product_hunt_client=FakeProductHuntClient(products=products),
+        llm_client=LlmErrorFailingClient(),
+    )
+
+    with pytest.raises(LlmError, match="No selected products could be enriched"):
+        collector.collect("2026-05-10")

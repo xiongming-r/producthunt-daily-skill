@@ -11,7 +11,7 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Fill `.env` with `PRODUCT_HUNT_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`.
+Fill `.env` with `PRODUCT_HUNT_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, and optional tuning such as `FETCH_LIMIT`.
 
 ## Commands
 

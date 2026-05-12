@@ -12,6 +12,7 @@ def _set_valid_env(monkeypatch):
     monkeypatch.setenv("MIN_VOTES", "300")
     monkeypatch.setenv("COMMENT_RATIO", "0.04")
     monkeypatch.setenv("MIN_COMMENTS", "8")
+    monkeypatch.setenv("FETCH_LIMIT", "125")
     monkeypatch.setenv("OUTPUT_DIR", "/tmp/ph-daily")
     monkeypatch.setenv("HTTP_TIMEOUT_SECONDS", "15")
 
@@ -29,6 +30,7 @@ def test_load_settings_from_environment(monkeypatch):
         min_votes=300,
         comment_ratio=0.04,
         min_comments=8,
+        fetch_limit=125,
         output_dir="/tmp/ph-daily",
         http_timeout_seconds=15.0,
     )
@@ -42,11 +44,27 @@ def test_missing_product_hunt_token_fails(monkeypatch):
         load_settings(load_dotenv_file=False)
 
 
+def test_missing_llm_api_key_fails(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("LLM_API_KEY", "   ")
+
+    with pytest.raises(ConfigError, match="LLM_API_KEY is required"):
+        load_settings(load_dotenv_file=False)
+
+
 def test_invalid_thresholds_fail(monkeypatch):
     _set_valid_env(monkeypatch)
     monkeypatch.setenv("COMMENT_RATIO", "-1")
 
     with pytest.raises(ConfigError, match="COMMENT_RATIO must be greater than 0"):
+        load_settings(load_dotenv_file=False)
+
+
+def test_invalid_fetch_limit_fails(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("FETCH_LIMIT", "0")
+
+    with pytest.raises(ConfigError, match="FETCH_LIMIT must be at least 1"):
         load_settings(load_dotenv_file=False)
 
 

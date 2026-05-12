@@ -44,6 +44,7 @@
   - `MIN_VOTES=300`
   - `COMMENT_RATIO=0.04`
   - `MIN_COMMENTS=8`
+- 默认 Product Hunt 候选抓取数量：`FETCH_LIMIT=100`。
 
 ## 计划中的文件结构
 

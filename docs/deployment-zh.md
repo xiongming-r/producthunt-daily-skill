@@ -24,6 +24,7 @@ LLM_MODEL=gpt-4.1-mini
 MIN_VOTES=300
 COMMENT_RATIO=0.04
 MIN_COMMENTS=8
+FETCH_LIMIT=100
 OUTPUT_DIR=.
 HTTP_TIMEOUT_SECONDS=30
 ```
@@ -84,3 +85,4 @@ reports/daily/YYYY-MM-DD.md
 - 生成的数据、报告和本地日志目录默认被 git 忽略。
 - 如果 `ph-daily healthcheck` 失败，先修复配置，再配置 cron 定时任务。
 - 如果 `ph-daily healthcheck` 成功，仍然需要至少手动运行一次 `ph-daily collect --date today`，确认 Product Hunt 和 LLM 集成可用。
+- 如果入选产品疑似缺失，可提高 `FETCH_LIMIT`；默认会从 Product Hunt 拉取最多 100 个候选产品再筛选。

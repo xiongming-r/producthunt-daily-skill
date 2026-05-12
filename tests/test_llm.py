@@ -19,6 +19,7 @@ def make_settings(api_key: str = "llm-key") -> Settings:
         min_votes=300,
         comment_ratio=0.04,
         min_comments=8,
+        fetch_limit=100,
         output_dir=".",
         http_timeout_seconds=5,
     )
@@ -256,3 +257,29 @@ def test_enrich_product_requires_api_key():
 
     with pytest.raises(ConfigError, match="LLM_API_KEY is required for enrichment"):
         client.enrich_product(make_product())
+
+
+def test_enrich_product_http_error_has_operational_context_without_api_key():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            429,
+            text="rate limited: retry later with token secret",
+            request=request,
+        )
+
+    client = LlmClient(
+        make_settings(api_key="secret-llm-key"),
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(LlmError) as exc_info:
+        client.enrich_product(make_product())
+
+    message = str(exc_info.value)
+    assert "Acme AI" in message
+    assert "123" in message
+    assert "model-a" in message
+    assert "https://llm.example.com/v1/chat/completions" in message
+    assert "status=429" in message
+    assert "rate limited" in message
+    assert "secret-llm-key" not in message

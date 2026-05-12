@@ -9,6 +9,15 @@ from ph_daily.errors import ProductHuntError
 from ph_daily.models import Product
 
 
+def _snippet(text: str, secret: str | None = None, limit: int = 200) -> str:
+    if secret:
+        text = text.replace(secret, "[redacted]")
+    text = " ".join(text.split())
+    if len(text) > limit:
+        return f"{text[:limit]}..."
+    return text
+
+
 class ProductHuntClient:
     endpoint = "https://api.producthunt.com/v2/api/graphql"
 
@@ -95,8 +104,19 @@ class ProductHuntClient:
                 try:
                     response = client.post(self.endpoint, headers=headers, json=payload)
                     response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    response = exc.response
+                    raise ProductHuntError(
+                        "Product Hunt request failed: "
+                        f"date={date} endpoint={self.endpoint} "
+                        f"status={response.status_code} "
+                        f"snippet={_snippet(response.text, self.token)!r}"
+                    ) from exc
                 except httpx.HTTPError as exc:
-                    raise ProductHuntError(f"Product Hunt request failed: {exc}") from exc
+                    raise ProductHuntError(
+                        "Product Hunt request failed: "
+                        f"date={date} endpoint={self.endpoint} error={exc}"
+                    ) from exc
 
                 try:
                     data = response.json()

@@ -21,6 +21,7 @@ class Settings:
     min_votes: int
     comment_ratio: float
     min_comments: int
+    fetch_limit: int
     output_dir: str
     http_timeout_seconds: float
 
@@ -60,15 +61,20 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
     min_votes = _read_int("MIN_VOTES", 300)
     comment_ratio = _read_float("COMMENT_RATIO", 0.04)
     min_comments = _read_int("MIN_COMMENTS", 8)
+    fetch_limit = _read_int("FETCH_LIMIT", 100)
     output_dir = os.getenv("OUTPUT_DIR", ".").strip() or "."
     http_timeout_seconds = _read_float("HTTP_TIMEOUT_SECONDS", 30.0)
 
+    if not llm_api_key:
+        raise ConfigError("LLM_API_KEY is required")
     if min_votes < 1:
         raise ConfigError("MIN_VOTES must be at least 1")
     if comment_ratio <= 0:
         raise ConfigError("COMMENT_RATIO must be greater than 0")
     if min_comments < 0:
         raise ConfigError("MIN_COMMENTS must be at least 0")
+    if fetch_limit < 1:
+        raise ConfigError("FETCH_LIMIT must be at least 1")
     if http_timeout_seconds <= 0:
         raise ConfigError("HTTP_TIMEOUT_SECONDS must be greater than 0")
     if not llm_model:
@@ -82,6 +88,7 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
         min_votes=min_votes,
         comment_ratio=comment_ratio,
         min_comments=min_comments,
+        fetch_limit=fetch_limit,
         output_dir=output_dir,
         http_timeout_seconds=http_timeout_seconds,
     )

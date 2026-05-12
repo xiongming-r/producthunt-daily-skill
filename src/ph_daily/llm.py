@@ -13,6 +13,15 @@ from ph_daily.models import Product, ProductEnrichment
 SCHEMA_ERROR = "LLM response did not match enrichment schema"
 
 
+def _snippet(text: str, secret: str | None = None, limit: int = 200) -> str:
+    if secret:
+        text = text.replace(secret, "[redacted]")
+    text = " ".join(text.split())
+    if len(text) > limit:
+        return f"{text[:limit]}..."
+    return text
+
+
 def _schema_error() -> LlmError:
     return LlmError(SCHEMA_ERROR)
 
@@ -101,31 +110,50 @@ class LlmClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        endpoint = f"{self.base_url}/chat/completions"
+        product_context = (
+            f"product_id={product.id} product_name={product.name!r} "
+            f"model={self.model} endpoint={endpoint}"
+        )
 
         with httpx.Client(timeout=self.timeout_seconds, transport=self.transport) as client:
             try:
-                response = client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
+                response = client.post(endpoint, headers=headers, json=payload)
                 response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                response = exc.response
+                raise LlmError(
+                    "LLM request failed: "
+                    f"{product_context} status={response.status_code} "
+                    f"snippet={_snippet(response.text, self.api_key)!r}"
+                ) from exc
             except httpx.HTTPError as exc:
-                raise LlmError(f"LLM request failed: {exc}") from exc
+                raise LlmError(
+                    f"LLM request failed: {product_context} error={exc}"
+                ) from exc
 
         try:
             data = response.json()
         except json.JSONDecodeError as exc:
-            raise LlmError("LLM response body was not valid JSON") from exc
+            raise LlmError(
+                f"LLM response body was not valid JSON: {product_context}"
+            ) from exc
 
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise LlmError(f"LLM response missing message content: {data}") from exc
+            raise LlmError(
+                f"LLM response missing message content: {product_context}; {data}"
+            ) from exc
         if not isinstance(content, str):
-            raise LlmError(f"LLM response missing message content: {data}")
+            raise LlmError(
+                f"LLM response missing message content: {product_context}; {data}"
+            )
 
-        return parse_enrichment_json(content)
+        try:
+            return parse_enrichment_json(content)
+        except LlmError as exc:
+            raise LlmError(f"{exc}: {product_context}") from exc
 
     @staticmethod
     def _build_prompt(product: Product) -> str:

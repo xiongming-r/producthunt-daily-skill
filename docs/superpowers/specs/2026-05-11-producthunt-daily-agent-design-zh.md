@@ -73,6 +73,7 @@ ph-daily healthcheck
 
 ```env
 PRODUCT_HUNT_TOKEN=...
+FETCH_LIMIT=100
 ```
 
 Worker 应该为目标日期获取与 daily leaderboard 等价或接近的数据。具体 GraphQL query 需要在实施阶段根据 Product Hunt 当前 schema 验证，并和已评估开源项目使用过的字段做对照。采集器至少需要保留以下字段：
@@ -91,6 +92,7 @@ Worker 应该为目标日期获取与 daily leaderboard 等价或接近的数据
 - 原始 API payload，方便追踪和排查
 
 如果 API 无法直接提供与公开 daily leaderboard 完全一致的排序，Worker 应该获取目标日期的 posts，并在本地按票数排序或过滤，同时在 raw metadata 中记录使用了什么方法。
+`FETCH_LIMIT` 用于控制本地筛选前最多抓取多少候选产品。
 
 ## 筛选规则
 
