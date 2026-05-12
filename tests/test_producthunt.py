@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from ph_daily.errors import ProductHuntError
-from ph_daily.producthunt import ProductHuntClient
+from ph_daily.producthunt import ProductHuntClient, ProductHuntPostFilters
 
 
 def test_build_posts_query_contains_required_fields():
@@ -100,6 +100,49 @@ def test_fetch_posts_sends_date_bounds_and_headers():
     assert captured["headers"]["Accept"] == "application/json"
     assert captured["headers"]["Content-Type"].startswith("application/json")
     assert captured["headers"]["User-Agent"] == "ph-daily-agent/0.1.0"
+
+
+def test_fetch_posts_sends_official_post_filters():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["variables"] = json.loads(request.content)["variables"]
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "posts": {
+                        "nodes": [],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = ProductHuntClient("token-1", timeout_seconds=5, transport=transport)
+
+    client.fetch_posts_for_date(
+        "2026-05-10",
+        limit=30,
+        filters=ProductHuntPostFilters(
+            featured=True,
+            order="FEATURED_AT",
+            topic="artificial-intelligence",
+            url="https://example.com",
+            twitter_url="https://x.com/example",
+        ),
+    )
+
+    assert captured["variables"]["first"] == 30
+    assert captured["variables"]["featured"] is True
+    assert captured["variables"]["order"] == "FEATURED_AT"
+    assert captured["variables"]["topic"] == "artificial-intelligence"
+    assert captured["variables"]["url"] == "https://example.com"
+    assert captured["variables"]["twitterUrl"] == "https://x.com/example"
 
 
 def test_fetch_posts_applies_limit_after_vote_sorting():
@@ -226,7 +269,7 @@ def test_fetch_posts_raises_on_http_status_failure():
 
     message = str(exc_info.value)
     assert "Product Hunt request failed" in message
-    assert "date=2026-05-10" in message
+    assert "context=2026-05-10" in message
     assert "endpoint=https://api.producthunt.com/v2/api/graphql" in message
     assert "status=500" in message
     assert "server failed" in message

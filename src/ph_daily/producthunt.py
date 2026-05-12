@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -16,6 +17,15 @@ def _snippet(text: str, secret: str | None = None, limit: int = 200) -> str:
     if len(text) > limit:
         return f"{text[:limit]}..."
     return text
+
+
+@dataclass(frozen=True)
+class ProductHuntPostFilters:
+    featured: bool | None = None
+    order: str = "VOTES"
+    topic: str = ""
+    url: str = ""
+    twitter_url: str = ""
 
 
 class ProductHuntClient:
@@ -34,8 +44,28 @@ class ProductHuntClient:
     @staticmethod
     def build_posts_query() -> str:
         return """
-        query DailyPosts($postedAfter: DateTime!, $postedBefore: DateTime!, $after: String) {
-          posts(order: VOTES, postedAfter: $postedAfter, postedBefore: $postedBefore, after: $after) {
+        query DailyPosts(
+          $first: Int,
+          $postedAfter: DateTime!,
+          $postedBefore: DateTime!,
+          $after: String,
+          $featured: Boolean,
+          $order: PostsOrder,
+          $topic: String,
+          $url: String,
+          $twitterUrl: String
+        ) {
+          posts(
+            first: $first,
+            order: $order,
+            postedAfter: $postedAfter,
+            postedBefore: $postedBefore,
+            after: $after,
+            featured: $featured,
+            topic: $topic,
+            url: $url,
+            twitterUrl: $twitterUrl
+          ) {
             nodes {
               id
               name
@@ -72,16 +102,35 @@ class ProductHuntClient:
         """
 
     def fetch_posts_for_date(
-        self, date: str, limit: int = 30
+        self,
+        date: str,
+        limit: int = 30,
+        filters: ProductHuntPostFilters | None = None,
     ) -> tuple[list[Product], list[dict[str, Any]]]:
+        return self.fetch_posts_for_window(
+            posted_after=f"{date}T00:00:00Z",
+            posted_before=f"{date}T23:59:59Z",
+            limit=limit,
+            filters=filters,
+            context=date,
+        )
+
+    def fetch_posts_for_window(
+        self,
+        posted_after: str,
+        posted_before: str,
+        limit: int = 30,
+        filters: ProductHuntPostFilters | None = None,
+        context: str | None = None,
+    ) -> tuple[list[Product], list[dict[str, Any]]]:
+        filters = filters or ProductHuntPostFilters()
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.token}",
             "User-Agent": "ph-daily-agent/0.1.0",
         }
-        posted_after = f"{date}T00:00:00Z"
-        posted_before = f"{date}T23:59:59Z"
+        request_context = context or f"{posted_after}..{posted_before}"
         cursor: str | None = None
         products: list[Product] = []
         raw_payloads: list[dict[str, Any]] = []
@@ -91,12 +140,19 @@ class ProductHuntClient:
             transport=self.transport,
         ) as client:
             while len(products) < limit:
+                first = max(1, min(50, limit - len(products)))
                 payload = {
                     "query": self.build_posts_query(),
                     "variables": {
+                        "first": first,
                         "postedAfter": posted_after,
                         "postedBefore": posted_before,
                         "after": cursor,
+                        "featured": filters.featured,
+                        "order": filters.order,
+                        "topic": filters.topic or None,
+                        "url": filters.url or None,
+                        "twitterUrl": filters.twitter_url or None,
                     },
                 }
                 try:
@@ -106,14 +162,14 @@ class ProductHuntClient:
                     response = exc.response
                     raise ProductHuntError(
                         "Product Hunt request failed: "
-                        f"date={date} endpoint={self.endpoint} "
+                        f"context={request_context} endpoint={self.endpoint} "
                         f"status={response.status_code} "
                         f"snippet={_snippet(response.text, self.token)!r}"
                     ) from exc
                 except httpx.HTTPError as exc:
                     raise ProductHuntError(
                         "Product Hunt request failed: "
-                        f"date={date} endpoint={self.endpoint} error={exc}"
+                        f"context={request_context} endpoint={self.endpoint} error={exc}"
                     ) from exc
 
                 try:
