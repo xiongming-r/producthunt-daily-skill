@@ -2,6 +2,8 @@
 
 [中文说明](#中文说明)
 
+Current version: **v0.1**
+
 An agent-friendly Product Hunt daily collector that fetches daily launches through the official Product Hunt GraphQL API, filters high-signal products with a dynamic vote/comment rule, enriches selected products with an OpenAI-compatible LLM, and writes readable Markdown/HTML reports plus structured JSON data.
 
 It is designed for cloud cron jobs and agent workflows such as Codex automations, Hermes, WorkBuddy, and Qclaw: agents schedule and observe the CLI, while this repository owns the deterministic collection, filtering, enrichment, and report generation logic.
@@ -201,6 +203,7 @@ env PRODUCT_HUNT_TOKEN=dummy LLM_API_KEY=dummy .venv/bin/ph-daily healthcheck
 
 ## Roadmap
 
+- v0.2: support weekly/monthly/yearly Product Hunt leaderboards, richer Product Hunt filters, keyword/topic filtering, and deeper agent integrations. See [docs/roadmap/v0.2.md](docs/roadmap/v0.2.md).
 - Retry policy for transient LLM timeouts.
 - Optional enrichment-only rerun for products that failed in a previous report.
 - More output formats, such as email-ready HTML.
@@ -215,6 +218,8 @@ No license has been selected yet.
 # 中文说明
 
 [Back to English](#product-hunt-daily-agent-collector)
+
+当前版本：**v0.1**
 
 一个面向 Agent 和定时任务的 Product Hunt 每日产品采集器。它通过 Product Hunt 官方 GraphQL API 抓取每日发布产品，用动态票数/评论规则过滤高信号产品，再调用兼容 OpenAI 格式的大模型生成中文解释型分析，最后输出结构化 JSON、Markdown 日报和 HTML 阅读版报告。
 
@@ -413,6 +418,7 @@ env PRODUCT_HUNT_TOKEN=dummy LLM_API_KEY=dummy .venv/bin/ph-daily healthcheck
 
 ## 路线图
 
+- v0.2：支持 Product Hunt 周榜、月榜、年榜，更丰富的官方过滤条件，关键词/topic 过滤，以及更深入的 Agent 集成。详见 [docs/roadmap/v0.2.md](docs/roadmap/v0.2.md)。
 - 增加 LLM 超时重试策略。
 - 支持只重跑上次失败的 enrichment。
 - 增加更适合邮件发送的 HTML 格式。
