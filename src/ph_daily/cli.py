@@ -16,11 +16,21 @@ def parse_date_arg(value: str) -> str:
     if value == "today":
         return date.today().isoformat()
 
+    if (
+        len(value) != 10
+        or value[4] != "-"
+        or value[7] != "-"
+        or not value[:4].isdigit()
+        or not value[5:7].isdigit()
+        or not value[8:].isdigit()
+    ):
+        raise ValueError(DATE_ERROR)
+
     try:
-        parsed = datetime.strptime(value, "%Y-%m-%d")
+        datetime.strptime(value, "%Y-%m-%d")
     except ValueError as exc:
         raise ValueError(DATE_ERROR) from exc
-    return parsed.date().isoformat()
+    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
