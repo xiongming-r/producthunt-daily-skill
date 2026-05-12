@@ -18,10 +18,13 @@ ph-daily collect --date today
 
 ```text
 运行 ph-daily collect --date today。
-如果失败，请报告 stderr 和当天日志中的关键错误。
+如果失败，请报告 stdout/stderr；如果任务来自 cron，也请检查已配置的 cron 日志，例如 logs/cron.log。
+如有生成的 data/raw、data/processed 或 reports/daily 文件，请一起说明这些文件是否完整。
 如果成功，请报告生成的 Markdown 日报路径，以及本次入选产品数量。
 不要重写 Product Hunt 筛选或富化逻辑，只调用仓库 CLI。
 ```
+
+注意：`ph-daily healthcheck` 只确认必需配置可以加载，不验证线上 Product Hunt 或 LLM 凭据。Agent 判断集成是否可用时，应以真实 `ph-daily collect --date today` 运行为准。
 
 ## Hermes
 
@@ -51,7 +54,7 @@ ph-daily backfill --days 7
 自然语言触发示例：
 
 ```text
-帮我运行今天的 Product Hunt 日报采集；如果失败，先执行健康检查并总结失败原因。
+帮我运行今天的 Product Hunt 日报采集；如果失败，请报告 stdout/stderr、cron 日志（如果已配置）以及已生成的数据/报告文件状态，再执行健康检查确认配置是否能加载。
 ```
 
 这些工具可以负责触发、观察、告警和把结果转成人类可读摘要，但不应该在自身内部重新实现筛选、富化或 Markdown 生成逻辑。

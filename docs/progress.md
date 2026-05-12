@@ -36,7 +36,6 @@ Implementation is in progress on branch `feat/producthunt-daily-agent-collector`
 data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
-logs/YYYY-MM-DD.log
 docs/deployment-zh.md
 docs/agent-integration-zh.md
 docs/progress.md
@@ -44,7 +43,7 @@ docs/superpowers/specs/
 docs/superpowers/plans/
 ```
 
-Generated data, reports, logs, and `.env` are ignored by git by default. Source code, config examples, specs, and plans should be committed.
+Generated data, reports, optional local logs, and `.env` are ignored by git by default. The collector currently writes raw JSON, processed JSON, and Markdown reports; cron stdout/stderr capture can be configured separately, such as `logs/cron.log`. Source code, config examples, specs, and plans should be committed.
 
 ## Open Gates
 

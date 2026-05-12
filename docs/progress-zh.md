@@ -38,7 +38,6 @@
 data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
-logs/YYYY-MM-DD.log
 docs/deployment-zh.md
 docs/agent-integration-zh.md
 docs/progress.md
@@ -47,7 +46,7 @@ docs/superpowers/specs/
 docs/superpowers/plans/
 ```
 
-生成的数据、报告、日志和 `.env` 默认不进入 git。源码、配置示例、设计文档和实施计划需要提交到 git。
+生成的数据、报告、可选本地日志和 `.env` 默认不进入 git。当前采集器会写入 raw JSON、processed JSON 和 Markdown 报告；cron 的 stdout/stderr 可单独配置到 `logs/cron.log` 等文件。源码、配置示例、设计文档和实施计划需要提交到 git。
 
 ## 未完成关卡
 
