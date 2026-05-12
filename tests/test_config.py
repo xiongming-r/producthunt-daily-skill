@@ -13,6 +13,7 @@ def _set_valid_env(monkeypatch):
     monkeypatch.setenv("COMMENT_RATIO", "0.04")
     monkeypatch.setenv("MIN_COMMENTS", "8")
     monkeypatch.setenv("FETCH_LIMIT", "125")
+    monkeypatch.setenv("OUTPUT_FORMATS", "markdown")
     monkeypatch.setenv("OUTPUT_DIR", "/tmp/ph-daily")
     monkeypatch.setenv("HTTP_TIMEOUT_SECONDS", "15")
 
@@ -31,6 +32,7 @@ def test_load_settings_from_environment(monkeypatch):
         comment_ratio=0.04,
         min_comments=8,
         fetch_limit=125,
+        output_formats=("markdown",),
         output_dir="/tmp/ph-daily",
         http_timeout_seconds=15.0,
     )
@@ -65,6 +67,37 @@ def test_invalid_fetch_limit_fails(monkeypatch):
     monkeypatch.setenv("FETCH_LIMIT", "0")
 
     with pytest.raises(ConfigError, match="FETCH_LIMIT must be at least 1"):
+        load_settings(load_dotenv_file=False)
+
+
+def test_load_settings_accepts_multiple_output_formats(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("OUTPUT_FORMATS", "markdown, html, markdown")
+
+    settings = load_settings(load_dotenv_file=False)
+
+    assert settings.output_formats == ("markdown", "html")
+
+
+def test_invalid_output_format_fails(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("OUTPUT_FORMATS", "markdown,pdf")
+
+    with pytest.raises(
+        ConfigError,
+        match="OUTPUT_FORMATS contains unsupported format: pdf",
+    ):
+        load_settings(load_dotenv_file=False)
+
+
+def test_empty_output_formats_fail(monkeypatch):
+    _set_valid_env(monkeypatch)
+    monkeypatch.setenv("OUTPUT_FORMATS", " , ")
+
+    with pytest.raises(
+        ConfigError,
+        match="OUTPUT_FORMATS must include at least one format",
+    ):
         load_settings(load_dotenv_file=False)
 
 

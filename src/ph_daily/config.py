@@ -22,6 +22,7 @@ class Settings:
     comment_ratio: float
     min_comments: int
     fetch_limit: int
+    output_formats: tuple[str, ...]
     output_dir: str
     http_timeout_seconds: float
 
@@ -45,6 +46,21 @@ def _read_float(name: str, default: float) -> float:
     return value
 
 
+def _read_output_formats() -> tuple[str, ...]:
+    raw = os.getenv("OUTPUT_FORMATS", "markdown")
+    formats = tuple(item.strip().lower() for item in raw.split(",") if item.strip())
+    if not formats:
+        raise ConfigError("OUTPUT_FORMATS must include at least one format")
+
+    allowed_formats = {"markdown", "html"}
+    invalid_formats = sorted(set(formats) - allowed_formats)
+    if invalid_formats:
+        joined = ", ".join(invalid_formats)
+        raise ConfigError(f"OUTPUT_FORMATS contains unsupported format: {joined}")
+
+    return tuple(dict.fromkeys(formats))
+
+
 def load_settings(load_dotenv_file: bool = True) -> Settings:
     if load_dotenv_file:
         load_dotenv()
@@ -62,6 +78,7 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
     comment_ratio = _read_float("COMMENT_RATIO", 0.04)
     min_comments = _read_int("MIN_COMMENTS", 8)
     fetch_limit = _read_int("FETCH_LIMIT", 100)
+    output_formats = _read_output_formats()
     output_dir = os.getenv("OUTPUT_DIR", ".").strip() or "."
     http_timeout_seconds = _read_float("HTTP_TIMEOUT_SECONDS", 30.0)
 
@@ -89,6 +106,7 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
         comment_ratio=comment_ratio,
         min_comments=min_comments,
         fetch_limit=fetch_limit,
+        output_formats=output_formats,
         output_dir=output_dir,
         http_timeout_seconds=http_timeout_seconds,
     )

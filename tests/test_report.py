@@ -50,6 +50,7 @@ def test_build_output_paths():
     assert str(paths.raw_json).endswith("data/raw/2026-05-10.json")
     assert str(paths.processed_json).endswith("data/processed/2026-05-10.json")
     assert str(paths.markdown_report).endswith("reports/daily/2026-05-10.md")
+    assert str(paths.html_report).endswith("reports/html/2026-05-10.html")
     assert str(paths.log_file).endswith("logs/2026-05-10.log")
 
 

@@ -13,6 +13,7 @@ class OutputPaths:
     raw_json: Path
     processed_json: Path
     markdown_report: Path
+    html_report: Path
     log_file: Path
 
 
@@ -22,6 +23,7 @@ def build_output_paths(output_dir: str, date: str) -> OutputPaths:
         raw_json=base_dir / "data" / "raw" / f"{date}.json",
         processed_json=base_dir / "data" / "processed" / f"{date}.json",
         markdown_report=base_dir / "reports" / "daily" / f"{date}.md",
+        html_report=base_dir / "reports" / "html" / f"{date}.html",
         log_file=base_dir / "logs" / f"{date}.log",
     )
 
