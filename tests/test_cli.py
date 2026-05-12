@@ -6,6 +6,7 @@ import pytest
 import ph_daily.cli as cli
 from ph_daily.cli import parse_date_arg, run
 from ph_daily.errors import ConfigError, ExitCode
+from ph_daily.producthunt import ProductHuntPostFilters
 
 
 def test_parse_date_arg_accepts_explicit_date():
@@ -54,15 +55,41 @@ def test_collect_invalid_date_returns_config_error_before_loading_settings(monke
     assert run(["collect", "--date", "2026/05/10"]) == ExitCode.CONFIG_ERROR
 
 
+def test_collect_invalid_period_returns_config_error_before_loading_settings(monkeypatch):
+    def fail_load_settings():
+        raise AssertionError("load_settings should not be called")
+
+    monkeypatch.setattr(cli, "load_settings", fail_load_settings)
+
+    assert run(["collect", "--period", "quarterly"]) == ExitCode.CONFIG_ERROR
+
+
 def test_collect_prints_counts_and_report_path(monkeypatch, capsys):
-    settings = object()
+    settings = SimpleNamespace(
+        product_hunt_featured=None,
+        product_hunt_order="VOTES",
+        product_hunt_topic="",
+        product_hunt_url="",
+        product_hunt_twitter_url="",
+    )
 
     class FakeCollector:
         def __init__(self, actual_settings):
             assert actual_settings is settings
 
-        def collect(self, target_date):
+        def collect_period(
+            self,
+            target_date,
+            period="daily",
+            post_filters=None,
+            include_keywords=None,
+            exclude_keywords=None,
+        ):
             assert target_date == "2026-05-10"
+            assert period == "daily"
+            assert post_filters == ProductHuntPostFilters(order="VOTES")
+            assert include_keywords is None
+            assert exclude_keywords is None
             return SimpleNamespace(
                 fetched_count=12,
                 selected_count=3,
@@ -78,6 +105,78 @@ def test_collect_prints_counts_and_report_path(monkeypatch, capsys):
     assert exit_code == ExitCode.SUCCESS
     assert "Selected 3/12 products" in captured.out
     assert "Report: /tmp/report.md" in captured.out
+
+
+def test_collect_passes_period_and_filter_overrides(monkeypatch, capsys):
+    settings = SimpleNamespace(
+        product_hunt_featured=None,
+        product_hunt_order="VOTES",
+        product_hunt_topic="",
+        product_hunt_url="",
+        product_hunt_twitter_url="",
+    )
+
+    class FakeCollector:
+        def __init__(self, actual_settings):
+            assert actual_settings is settings
+
+        def collect_period(
+            self,
+            target_date,
+            period="daily",
+            post_filters=None,
+            include_keywords=None,
+            exclude_keywords=None,
+        ):
+            assert target_date == "2026-05-10"
+            assert period == "monthly"
+            assert post_filters == ProductHuntPostFilters(
+                featured=True,
+                order="NEWEST",
+                topic="artificial-intelligence",
+                url="https://example.com",
+                twitter_url="https://x.com/example",
+            )
+            assert include_keywords == ("ai", "agent")
+            assert exclude_keywords == ("game",)
+            return SimpleNamespace(
+                fetched_count=20,
+                selected_count=5,
+                paths=SimpleNamespace(markdown_report="/tmp/monthly.md"),
+            )
+
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+    monkeypatch.setattr(cli, "Collector", FakeCollector)
+
+    exit_code = run(
+        [
+            "collect",
+            "--date",
+            "2026-05-10",
+            "--period",
+            "monthly",
+            "--featured",
+            "true",
+            "--order",
+            "NEWEST",
+            "--topic",
+            "artificial-intelligence",
+            "--url",
+            "https://example.com",
+            "--twitter-url",
+            "https://x.com/example",
+            "--include-keyword",
+            "AI",
+            "--include-keyword",
+            "agent",
+            "--exclude-keyword",
+            "game",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == ExitCode.SUCCESS
+    assert "Selected 5/20 products" in captured.out
 
 
 def test_backfill_collects_yesterday_through_requested_days(monkeypatch, capsys):

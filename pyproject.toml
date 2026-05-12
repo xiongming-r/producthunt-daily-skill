@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "producthunt-daily-agent"
-version = "0.1.0"
-description = "Agent-friendly Product Hunt daily collector with LLM enrichment"
+version = "0.2.0"
+description = "Agent-friendly Product Hunt period collector with LLM enrichment"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

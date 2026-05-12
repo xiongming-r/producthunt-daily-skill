@@ -17,14 +17,31 @@ class OutputPaths:
     log_file: Path
 
 
-def build_output_paths(output_dir: str, date: str) -> OutputPaths:
+def build_output_paths(
+    output_dir: str,
+    date: str,
+    period: str = "daily",
+    output_key: str | None = None,
+) -> OutputPaths:
     base_dir = Path(output_dir)
+    key = output_key or date
+    if period == "daily":
+        raw_json = base_dir / "data" / "raw" / f"{key}.json"
+        processed_json = base_dir / "data" / "processed" / f"{key}.json"
+        markdown_report = base_dir / "reports" / "daily" / f"{key}.md"
+        html_report = base_dir / "reports" / "html" / f"{key}.html"
+    else:
+        raw_json = base_dir / "data" / "raw" / period / f"{key}.json"
+        processed_json = base_dir / "data" / "processed" / period / f"{key}.json"
+        markdown_report = base_dir / "reports" / period / f"{key}.md"
+        html_report = base_dir / "reports" / "html" / period / f"{key}.html"
+
     return OutputPaths(
-        raw_json=base_dir / "data" / "raw" / f"{date}.json",
-        processed_json=base_dir / "data" / "processed" / f"{date}.json",
-        markdown_report=base_dir / "reports" / "daily" / f"{date}.md",
-        html_report=base_dir / "reports" / "html" / f"{date}.html",
-        log_file=base_dir / "logs" / f"{date}.log",
+        raw_json=raw_json,
+        processed_json=processed_json,
+        markdown_report=markdown_report,
+        html_report=html_report,
+        log_file=base_dir / "logs" / f"{key}.log",
     )
 
 

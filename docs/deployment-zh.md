@@ -21,10 +21,13 @@ PRODUCT_HUNT_TOKEN=your_product_hunt_token
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=your_llm_api_key
 LLM_MODEL=gpt-4.1-mini
-MIN_VOTES=300
-COMMENT_RATIO=0.04
-MIN_COMMENTS=8
-FETCH_LIMIT=100
+DAILY_MIN_VOTES=300
+WEEKLY_MIN_VOTES=800
+MONTHLY_MIN_VOTES=1000
+YEARLY_MIN_VOTES=5000
+PRODUCT_HUNT_TOPIC=
+INCLUDE_KEYWORDS=ai,agent,developer tools
+EXCLUDE_KEYWORDS=crypto,gambling
 OUTPUT_FORMATS=markdown,html
 OUTPUT_DIR=.
 HTTP_TIMEOUT_SECONDS=30
@@ -52,6 +55,21 @@ ph-daily collect --date today
 ph-daily collect --date 2026-05-12
 ```
 
+也可以采集周榜、月榜、年榜。`--date` 是锚点日期，程序会自动换算所在周、所在月或所在年：
+
+```bash
+ph-daily collect --period weekly --date 2026-05-11
+ph-daily collect --period monthly --date 2026-05-01
+ph-daily collect --period yearly --date 2026-01-01
+```
+
+常见过滤示例：
+
+```bash
+ph-daily collect --period monthly --topic artificial-intelligence --include-keyword agent
+ph-daily collect --period weekly --featured true --exclude-keyword crypto
+```
+
 回填最近 7 天：
 
 ```bash
@@ -77,6 +95,10 @@ data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
 reports/html/YYYY-MM-DD.html
+data/raw/monthly/YYYY-MM.json
+data/processed/monthly/YYYY-MM.json
+reports/monthly/YYYY-MM.md
+reports/html/monthly/YYYY-MM.html
 ```
 
 当前采集器不会自动创建 `logs/YYYY-MM-DD.log` 这类每日应用日志。上面的 cron 示例会把 stdout/stderr 追加到 `logs/cron.log`，便于排查定时任务失败；如果需要按日期切分日志，可在服务器侧额外配置 logrotate 或自己的 cron 包装脚本。
@@ -87,4 +109,5 @@ reports/html/YYYY-MM-DD.html
 - 生成的数据、报告和本地日志目录默认被 git 忽略。
 - 如果 `ph-daily healthcheck` 失败，先修复配置，再配置 cron 定时任务。
 - 如果 `ph-daily healthcheck` 成功，仍然需要至少手动运行一次 `ph-daily collect --date today`，确认 Product Hunt 和 LLM 集成可用。
-- 如果入选产品疑似缺失，可提高 `FETCH_LIMIT`；默认会从 Product Hunt 拉取最多 100 个候选产品再筛选。
+- 如果入选产品疑似缺失，可提高对应周期的 `DAILY_FETCH_LIMIT`、`WEEKLY_FETCH_LIMIT`、`MONTHLY_FETCH_LIMIT` 或 `YEARLY_FETCH_LIMIT`。
+- 月榜默认 `MONTHLY_MIN_VOTES=1000`，年榜默认 `YEARLY_MIN_VOTES=5000`，用于降低大周期榜单中刷票或低讨论产品的比例。

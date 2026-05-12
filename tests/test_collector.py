@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -6,6 +7,7 @@ from ph_daily.collector import Collector
 from ph_daily.config import QualitySettings, Settings
 from ph_daily.errors import ConfigError, LlmError
 from ph_daily.models import Product, ProductEnrichment
+from ph_daily.producthunt import ProductHuntPostFilters
 
 
 def make_product(name: str, votes: int, comments: int) -> Product:
@@ -34,15 +36,36 @@ class FakeProductHuntClient:
             make_product("Pass Product", votes=500, comments=25),
             make_product("Fail Product", votes=1000, comments=2),
         ]
-        self.calls: list[tuple[str, int]] = []
+        self.calls: list[dict[str, object]] = []
 
-    def fetch_posts_for_date(
-        self, date: str, limit: int = 30
+    def fetch_posts_for_window(
+        self,
+        posted_after: str,
+        posted_before: str,
+        limit: int = 30,
+        filters: ProductHuntPostFilters | None = None,
+        context: str | None = None,
     ) -> tuple[list[Product], list[dict[str, object]]]:
-        self.calls.append((date, limit))
+        self.calls.append(
+            {
+                "posted_after": posted_after,
+                "posted_before": posted_before,
+                "limit": limit,
+                "filters": filters,
+                "context": context,
+            }
+        )
         return (
             self.products,
-            [{"data": {"posts": {"nodes": ["raw-node"]}}, "date": date, "limit": limit}],
+            [
+                {
+                    "data": {"posts": {"nodes": ["raw-node"]}},
+                    "posted_after": posted_after,
+                    "posted_before": posted_before,
+                    "limit": limit,
+                    "context": context,
+                }
+            ],
         )
 
 
@@ -121,7 +144,15 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
 
     result = collector.collect("2026-05-10")
 
-    assert ph_client.calls == [("2026-05-10", 42)]
+    assert ph_client.calls == [
+        {
+            "posted_after": "2026-05-10T00:00:00Z",
+            "posted_before": "2026-05-10T23:59:59Z",
+            "limit": 42,
+            "filters": ProductHuntPostFilters(order="VOTES"),
+            "context": "daily:2026-05-10",
+        }
+    ]
     assert result.fetched_count == 2
     assert result.selected_count == 1
     assert result.paths.raw_json.exists()
@@ -135,9 +166,18 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
 
     raw_data = json.loads(result.paths.raw_json.read_text(encoding="utf-8"))
     assert raw_data["date"] == "2026-05-10"
+    assert raw_data["period"] == "daily"
+    assert raw_data["posted_after"] == "2026-05-10T00:00:00Z"
+    assert raw_data["posted_before"] == "2026-05-10T23:59:59Z"
     assert raw_data["source"] == "producthunt_api_v2_graphql"
     assert raw_data["raw_payloads"] == [
-        {"data": {"posts": {"nodes": ["raw-node"]}}, "date": "2026-05-10", "limit": 42}
+        {
+            "data": {"posts": {"nodes": ["raw-node"]}},
+            "posted_after": "2026-05-10T00:00:00Z",
+            "posted_before": "2026-05-10T23:59:59Z",
+            "limit": 42,
+            "context": "daily:2026-05-10",
+        }
     ]
     assert [product["name"] for product in raw_data["products"]] == [
         "Pass Product",
@@ -150,9 +190,97 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
         "min_comments": 8,
         "comment_ratio": 0.04,
         "rule": "votes >= 300 and comments_count >= max(8, ceil(votes * 0.04))",
+        "include_keywords": [],
+        "exclude_keywords": [],
     }
     assert processed_data["products"][0]["enrichment"]["purpose_zh"] == "有用产品"
     assert processed_data["products"][1]["enrichment"] is None
+
+
+def test_collect_monthly_uses_month_window_and_period_quality(tmp_path):
+    products = [
+        make_product("Almost Monthly", votes=999, comments=80),
+        make_product("Pass Monthly", votes=1200, comments=80),
+    ]
+    ph_client = FakeProductHuntClient(products=products)
+    collector = Collector(
+        settings=make_settings(tmp_path),
+        product_hunt_client=ph_client,
+        llm_client=FakeLlmClient(),
+    )
+
+    result = collector.collect_period("2026-05-12", period="monthly")
+
+    assert ph_client.calls[0]["posted_after"] == "2026-05-01T00:00:00Z"
+    assert ph_client.calls[0]["posted_before"] == "2026-05-31T23:59:59Z"
+    assert ph_client.calls[0]["limit"] == 200
+    assert ph_client.calls[0]["context"] == "monthly:2026-05"
+    assert result.selected_count == 1
+    assert str(result.paths.markdown_report).endswith("reports/monthly/2026-05.md")
+
+    processed_data = json.loads(result.paths.processed_json.read_text(encoding="utf-8"))
+    assert processed_data["period"] == "monthly"
+    assert processed_data["output_key"] == "2026-05"
+    assert processed_data["filter"]["min_votes"] == 1000
+    assert processed_data["products"][0]["filter_decision"]["passed"] is False
+    assert processed_data["products"][1]["filter_decision"]["passed"] is True
+
+
+def test_collect_applies_keyword_filters_before_enrichment(tmp_path):
+    products = [
+        make_product("AI Research", votes=500, comments=30),
+        make_product("Crypto Helper", votes=700, comments=40),
+    ]
+    settings = replace(
+        make_settings(tmp_path),
+        include_keywords=("ai",),
+        exclude_keywords=("crypto",),
+    )
+    collector = Collector(
+        settings=settings,
+        product_hunt_client=FakeProductHuntClient(products=products),
+        llm_client=FakeLlmClient(),
+    )
+
+    result = collector.collect("2026-05-10")
+
+    assert result.selected_count == 1
+    processed_data = json.loads(result.paths.processed_json.read_text(encoding="utf-8"))
+    assert processed_data["filter"]["include_keywords"] == ["ai"]
+    assert processed_data["filter"]["exclude_keywords"] == ["crypto"]
+    assert processed_data["products"][0]["filter_decision"]["passed"] is True
+    assert processed_data["products"][1]["filter_decision"]["passed"] is False
+    assert (
+        processed_data["products"][1]["filter_decision"]["reason"]
+        == "excluded by keyword: crypto"
+    )
+
+
+def test_collect_passes_product_hunt_filters_from_settings(tmp_path):
+    settings = replace(
+        make_settings(tmp_path),
+        product_hunt_featured=True,
+        product_hunt_order="NEWEST",
+        product_hunt_topic="artificial-intelligence",
+        product_hunt_url="https://example.com",
+        product_hunt_twitter_url="https://x.com/example",
+    )
+    ph_client = FakeProductHuntClient()
+    collector = Collector(
+        settings=settings,
+        product_hunt_client=ph_client,
+        llm_client=FakeLlmClient(),
+    )
+
+    collector.collect("2026-05-10")
+
+    assert ph_client.calls[0]["filters"] == ProductHuntPostFilters(
+        featured=True,
+        order="NEWEST",
+        topic="artificial-intelligence",
+        url="https://example.com",
+        twitter_url="https://x.com/example",
+    )
 
 
 def test_collect_raises_when_only_selected_product_fails_enrichment(tmp_path):
@@ -217,27 +345,7 @@ def test_collect_raises_when_all_selected_products_fail_enrichment(tmp_path):
 
 def test_collect_writes_markdown_and_html_when_configured(tmp_path):
     settings = make_settings(tmp_path)
-    settings = Settings(
-        product_hunt_token=settings.product_hunt_token,
-        llm_base_url=settings.llm_base_url,
-        llm_api_key=settings.llm_api_key,
-        llm_model=settings.llm_model,
-        min_votes=settings.min_votes,
-        comment_ratio=settings.comment_ratio,
-        min_comments=settings.min_comments,
-        fetch_limit=settings.fetch_limit,
-        period_quality=settings.period_quality,
-        output_formats=("markdown", "html"),
-        product_hunt_featured=settings.product_hunt_featured,
-        product_hunt_order=settings.product_hunt_order,
-        product_hunt_topic=settings.product_hunt_topic,
-        product_hunt_url=settings.product_hunt_url,
-        product_hunt_twitter_url=settings.product_hunt_twitter_url,
-        include_keywords=settings.include_keywords,
-        exclude_keywords=settings.exclude_keywords,
-        output_dir=settings.output_dir,
-        http_timeout_seconds=settings.http_timeout_seconds,
-    )
+    settings = replace(settings, output_formats=("markdown", "html"))
     collector = Collector(
         settings=settings,
         product_hunt_client=FakeProductHuntClient(),

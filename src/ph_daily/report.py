@@ -25,6 +25,7 @@ def render_daily_report(
     fetched_count: int,
     processed_products: list[ProcessedProduct],
     filter_rule: str,
+    period_label: str = "每日",
 ) -> str:
     selected_products = [
         processed_product
@@ -37,7 +38,7 @@ def render_daily_report(
     enrichment_failure_count = len(selected_products) - enrichment_success_count
 
     sections = [
-        f"# Product Hunt 每日精选 - {date}",
+        f"# Product Hunt {period_label}精选 - {date}",
         "## 概览",
         f"- 抓取产品数：{fetched_count}",
         f"- 入选产品数：{len(selected_products)}",

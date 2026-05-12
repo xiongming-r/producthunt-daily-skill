@@ -26,6 +26,7 @@ def render_html_report(
     fetched_count: int,
     processed_products: list[ProcessedProduct],
     filter_rule: str,
+    period_label: str = "每日",
 ) -> str:
     selected_products = [
         item for item in processed_products if item.filter_decision.passed
@@ -45,7 +46,7 @@ def render_html_report(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Product Hunt 每日精选 - {escape(date)}</title>
+  <title>Product Hunt {escape(period_label)}精选 - {escape(date)}</title>
   <style>
     :root {{
       color-scheme: light;
@@ -151,7 +152,7 @@ def render_html_report(
 <body>
   <main>
     <header>
-      <h1>Product Hunt 每日精选</h1>
+      <h1>Product Hunt {escape(period_label)}精选</h1>
       <p>{escape(date)} 的高票且讨论充分产品摘要。</p>
     </header>
     <section aria-labelledby="summary-title">

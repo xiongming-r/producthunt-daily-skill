@@ -2,17 +2,21 @@
 
 [中文说明](#中文说明)
 
-Current version: **v0.1**
+Current version: **v0.2**
 
-An agent-friendly Product Hunt daily collector that fetches daily launches through the official Product Hunt GraphQL API, filters high-signal products with a dynamic vote/comment rule, enriches selected products with an OpenAI-compatible LLM, and writes readable Markdown/HTML reports plus structured JSON data.
+An agent-friendly Product Hunt collector that fetches daily, weekly, monthly, or yearly launches through the official Product Hunt GraphQL API, filters high-signal products with dynamic vote/comment rules and keywords, enriches selected products with an OpenAI-compatible LLM, and writes readable Markdown/HTML reports plus structured JSON data.
 
 It is designed for cloud cron jobs and agent workflows such as Codex automations, Hermes, WorkBuddy, and Qclaw: agents schedule and observe the CLI, while this repository owns the deterministic collection, filtering, enrichment, and report generation logic.
 
 ## Features
 
-- **Official Product Hunt API**: fetches daily launches through Product Hunt API v2 GraphQL.
+- **Official Product Hunt API**: fetches launches through Product Hunt API v2 GraphQL.
+- **Multiple collection periods**: supports `daily`, `weekly`, `monthly`, and `yearly` modes from one anchor date.
 - **Dynamic quality filter**: keeps products with `votes >= MIN_VOTES` and enough discussion:
   `comments_count >= max(MIN_COMMENTS, ceil(votes * COMMENT_RATIO))`.
+- **Stricter broad-period defaults**: weekly/monthly/yearly use higher default thresholds to reduce noisy or suspicious entries.
+- **Product Hunt filters**: supports `featured`, `order`, `topic`, `url`, and `twitterUrl` filters.
+- **Local keyword filters**: supports include/exclude keyword matching before LLM enrichment.
 - **OpenAI-compatible LLM enrichment**: supports `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`.
 - **Chinese explanatory analysis**: explains product purpose, target users, use cases, workflow examples, why it matters, and caveats.
 - **Multiple report formats**: writes Markdown and/or HTML with `OUTPUT_FORMATS=markdown,html`.
@@ -62,10 +66,15 @@ LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=your_llm_api_key
 LLM_MODEL=gpt-4.1-mini
 
-MIN_VOTES=300
-COMMENT_RATIO=0.04
-MIN_COMMENTS=8
-FETCH_LIMIT=100
+DAILY_MIN_VOTES=300
+WEEKLY_MIN_VOTES=800
+MONTHLY_MIN_VOTES=1000
+YEARLY_MIN_VOTES=5000
+
+PRODUCT_HUNT_TOPIC=
+INCLUDE_KEYWORDS=ai,agent,developer tools
+EXCLUDE_KEYWORDS=crypto,gambling
+
 OUTPUT_FORMATS=markdown,html
 OUTPUT_DIR=.
 HTTP_TIMEOUT_SECONDS=90
@@ -91,6 +100,21 @@ Collect a specific date:
 ph-daily collect --date 2026-05-11
 ```
 
+Collect broader periods from an anchor date:
+
+```bash
+ph-daily collect --period weekly --date 2026-05-11
+ph-daily collect --period monthly --date 2026-05-01
+ph-daily collect --period yearly --date 2026-01-01
+```
+
+Use Product Hunt and keyword filters:
+
+```bash
+ph-daily collect --period monthly --topic artificial-intelligence --include-keyword agent
+ph-daily collect --period weekly --featured true --exclude-keyword crypto
+```
+
 Backfill recent days:
 
 ```bash
@@ -109,6 +133,17 @@ ph-daily backfill --days 7
 | `COMMENT_RATIO` | `0.04` | Dynamic discussion threshold ratio. |
 | `MIN_COMMENTS` | `8` | Minimum discussion floor. |
 | `FETCH_LIMIT` | `100` | Maximum Product Hunt candidates fetched before filtering. |
+| `DAILY_*` | generic values | Daily period quality overrides: `MIN_VOTES`, `COMMENT_RATIO`, `MIN_COMMENTS`, `FETCH_LIMIT`. |
+| `WEEKLY_*` | `800`, `0.035`, `20`, `150` | Weekly quality overrides. |
+| `MONTHLY_*` | `1000`, `0.03`, `40`, `200` | Monthly quality overrides. |
+| `YEARLY_*` | `5000`, `0.02`, `120`, `300` | Yearly quality overrides. |
+| `PRODUCT_HUNT_FEATURED` | unset | Optional `true`/`false` Product Hunt `featured` filter. |
+| `PRODUCT_HUNT_ORDER` | `VOTES` | Product Hunt ordering: `VOTES`, `NEWEST`, or `FEATURED_AT`. |
+| `PRODUCT_HUNT_TOPIC` | unset | Optional Product Hunt topic slug. |
+| `PRODUCT_HUNT_URL` | unset | Optional Product Hunt `url` filter for diagnostics. |
+| `PRODUCT_HUNT_TWITTER_URL` | unset | Optional Product Hunt `twitterUrl` filter for diagnostics. |
+| `INCLUDE_KEYWORDS` | unset | Comma-separated local keywords; when set, products must match at least one. |
+| `EXCLUDE_KEYWORDS` | unset | Comma-separated local keywords; matching products are removed before enrichment. |
 | `OUTPUT_FORMATS` | `markdown` | Comma-separated formats: `markdown`, `html`, or both. |
 | `OUTPUT_DIR` | `.` | Root directory for generated artifacts. |
 | `HTTP_TIMEOUT_SECONDS` | `30` | HTTP timeout for Product Hunt and LLM requests. |
@@ -122,6 +157,10 @@ data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
 reports/html/YYYY-MM-DD.html
+data/raw/monthly/YYYY-MM.json
+data/processed/monthly/YYYY-MM.json
+reports/monthly/YYYY-MM.md
+reports/html/monthly/YYYY-MM.html
 ```
 
 `data/processed` keeps detailed enrichment errors for debugging. User-facing Markdown and HTML reports show friendly Chinese error messages instead of raw stack-like operational errors.
@@ -157,6 +196,7 @@ Recommended commands:
 ```bash
 ph-daily healthcheck
 ph-daily collect --date today
+ph-daily collect --period weekly --date today
 ph-daily backfill --days 7
 ```
 
@@ -203,7 +243,7 @@ env PRODUCT_HUNT_TOKEN=dummy LLM_API_KEY=dummy .venv/bin/ph-daily healthcheck
 
 ## Roadmap
 
-- v0.2: support weekly/monthly/yearly Product Hunt leaderboards, richer Product Hunt filters, keyword/topic filtering, and deeper agent integrations. See [docs/roadmap/v0.2.md](docs/roadmap/v0.2.md).
+- v0.3: enrichment retry/rerun flows, richer notification hooks, and optional real agent enrichment adapters.
 - Retry policy for transient LLM timeouts.
 - Optional enrichment-only rerun for products that failed in a previous report.
 - More output formats, such as email-ready HTML.
@@ -219,17 +259,21 @@ No license has been selected yet.
 
 [Back to English](#product-hunt-daily-agent-collector)
 
-当前版本：**v0.1**
+当前版本：**v0.2**
 
-一个面向 Agent 和定时任务的 Product Hunt 每日产品采集器。它通过 Product Hunt 官方 GraphQL API 抓取每日发布产品，用动态票数/评论规则过滤高信号产品，再调用兼容 OpenAI 格式的大模型生成中文解释型分析，最后输出结构化 JSON、Markdown 日报和 HTML 阅读版报告。
+一个面向 Agent 和定时任务的 Product Hunt 产品采集器。它通过 Product Hunt 官方 GraphQL API 抓取日榜、周榜、月榜或年榜产品，用动态票数/评论规则和关键词过滤高信号产品，再调用兼容 OpenAI 格式的大模型生成中文解释型分析，最后输出结构化 JSON、Markdown 报告和 HTML 阅读版报告。
 
 这个项目的定位是：业务逻辑留在代码里，Codex 自动化、Hermes、WorkBuddy、Qclaw 等 Agent 工具只负责调度、观察和报告结果。
 
 ## 功能特性
 
 - **官方 API 抓取**：使用 Product Hunt API v2 GraphQL。
+- **多周期采集**：支持 `daily`、`weekly`、`monthly`、`yearly`。
 - **动态质量筛选**：要求 `votes >= MIN_VOTES`，并且评论数满足：
   `comments_count >= max(MIN_COMMENTS, ceil(votes * COMMENT_RATIO))`。
+- **更严格的大周期默认值**：周榜、月榜、年榜默认使用更高票数和评论门槛。
+- **Product Hunt 官方过滤**：支持 `featured`、`order`、`topic`、`url`、`twitterUrl`。
+- **本地关键词过滤**：支持 include/exclude 关键词，在调用 LLM 前先过滤低相关产品。
 - **兼容 OpenAI 的 LLM 配置**：支持 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。
 - **中文解释型分析**：不是简单翻译，会说明产品用途、目标用户、使用场景、工作流示例、关注理由和注意事项。
 - **多格式输出**：通过 `OUTPUT_FORMATS=markdown,html` 同时生成 Markdown 和 HTML。
@@ -279,10 +323,15 @@ LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=your_llm_api_key
 LLM_MODEL=gpt-4.1-mini
 
-MIN_VOTES=300
-COMMENT_RATIO=0.04
-MIN_COMMENTS=8
-FETCH_LIMIT=100
+DAILY_MIN_VOTES=300
+WEEKLY_MIN_VOTES=800
+MONTHLY_MIN_VOTES=1000
+YEARLY_MIN_VOTES=5000
+
+PRODUCT_HUNT_TOPIC=
+INCLUDE_KEYWORDS=ai,agent,developer tools
+EXCLUDE_KEYWORDS=crypto,gambling
+
 OUTPUT_FORMATS=markdown,html
 OUTPUT_DIR=.
 HTTP_TIMEOUT_SECONDS=90
@@ -308,6 +357,21 @@ ph-daily collect --date today
 ph-daily collect --date 2026-05-11
 ```
 
+按锚点日期采集更大周期：
+
+```bash
+ph-daily collect --period weekly --date 2026-05-11
+ph-daily collect --period monthly --date 2026-05-01
+ph-daily collect --period yearly --date 2026-01-01
+```
+
+使用 Product Hunt 和关键词过滤：
+
+```bash
+ph-daily collect --period monthly --topic artificial-intelligence --include-keyword agent
+ph-daily collect --period weekly --featured true --exclude-keyword crypto
+```
+
 回填最近 7 天：
 
 ```bash
@@ -326,6 +390,17 @@ ph-daily backfill --days 7
 | `COMMENT_RATIO` | `0.04` | 动态评论门槛比例。 |
 | `MIN_COMMENTS` | `8` | 最低评论数下限。 |
 | `FETCH_LIMIT` | `100` | 过滤前最多抓取多少个候选产品。 |
+| `DAILY_*` | 通用值 | 日榜质量过滤覆盖项：`MIN_VOTES`、`COMMENT_RATIO`、`MIN_COMMENTS`、`FETCH_LIMIT`。 |
+| `WEEKLY_*` | `800`, `0.035`, `20`, `150` | 周榜质量过滤覆盖项。 |
+| `MONTHLY_*` | `1000`, `0.03`, `40`, `200` | 月榜质量过滤覆盖项。 |
+| `YEARLY_*` | `5000`, `0.02`, `120`, `300` | 年榜质量过滤覆盖项。 |
+| `PRODUCT_HUNT_FEATURED` | 空 | 可选 `true`/`false`，映射 Product Hunt `featured` 过滤。 |
+| `PRODUCT_HUNT_ORDER` | `VOTES` | Product Hunt 排序：`VOTES`、`NEWEST` 或 `FEATURED_AT`。 |
+| `PRODUCT_HUNT_TOPIC` | 空 | 可选 Product Hunt topic slug。 |
+| `PRODUCT_HUNT_URL` | 空 | 可选 Product Hunt `url` 过滤，主要用于诊断。 |
+| `PRODUCT_HUNT_TWITTER_URL` | 空 | 可选 Product Hunt `twitterUrl` 过滤，主要用于诊断。 |
+| `INCLUDE_KEYWORDS` | 空 | 逗号分隔关键词；设置后产品必须至少命中一个关键词。 |
+| `EXCLUDE_KEYWORDS` | 空 | 逗号分隔关键词；命中的产品会在 LLM 解读前移除。 |
 | `OUTPUT_FORMATS` | `markdown` | 输出格式，可选 `markdown`、`html` 或两者。 |
 | `OUTPUT_DIR` | `.` | 输出根目录。 |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Product Hunt 和 LLM 请求超时时间。 |
@@ -337,6 +412,10 @@ data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
 reports/html/YYYY-MM-DD.html
+data/raw/monthly/YYYY-MM.json
+data/processed/monthly/YYYY-MM.json
+reports/monthly/YYYY-MM.md
+reports/html/monthly/YYYY-MM.html
 ```
 
 `data/processed` 会保留详细错误，方便排查。Markdown 和 HTML 面向阅读，会把 LLM 超时等问题转换成中文友好提示。
@@ -372,6 +451,7 @@ Agent 不应该重写筛选和解读逻辑，只需要调用 CLI。
 ```bash
 ph-daily healthcheck
 ph-daily collect --date today
+ph-daily collect --period weekly --date today
 ph-daily backfill --days 7
 ```
 
@@ -418,7 +498,7 @@ env PRODUCT_HUNT_TOKEN=dummy LLM_API_KEY=dummy .venv/bin/ph-daily healthcheck
 
 ## 路线图
 
-- v0.2：支持 Product Hunt 周榜、月榜、年榜，更丰富的官方过滤条件，关键词/topic 过滤，以及更深入的 Agent 集成。详见 [docs/roadmap/v0.2.md](docs/roadmap/v0.2.md)。
+- v0.3：补充富化失败重跑、更丰富的通知 hook，以及可选的真实 Agent 富化适配器。
 - 增加 LLM 超时重试策略。
 - 支持只重跑上次失败的 enrichment。
 - 增加更适合邮件发送的 HTML 格式。
