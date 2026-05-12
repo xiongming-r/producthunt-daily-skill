@@ -1,6 +1,6 @@
 # Product Hunt Daily Agent Collector
 
-Agent-friendly Product Hunt daily collector. It fetches Product Hunt daily launches through the official GraphQL API, filters products with dynamic vote/comment quality rules, enriches selected products with an OpenAI-compatible LLM endpoint, and writes JSON plus Markdown reports.
+Agent-friendly Product Hunt daily collector. It fetches Product Hunt daily launches through the official GraphQL API, filters products with dynamic vote/comment quality rules, enriches selected products with an OpenAI-compatible LLM endpoint, and writes JSON plus Markdown/HTML reports.
 
 ## Setup
 
@@ -11,7 +11,7 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Fill `.env` with `PRODUCT_HUNT_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, and optional tuning such as `FETCH_LIMIT`.
+Fill `.env` with `PRODUCT_HUNT_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, and optional tuning such as `FETCH_LIMIT` and `OUTPUT_FORMATS=markdown,html`.
 
 ## Commands
 
@@ -22,4 +22,4 @@ ph-daily collect --date 2026-05-11
 ph-daily backfill --days 7
 ```
 
-Generated runtime files are written under `data/`, `reports/`, and `logs/`; those paths are ignored by git.
+Generated runtime files are written under `data/`, `reports/`, and `logs/`; those paths are ignored by git. HTML reports are written to `reports/html/` when `OUTPUT_FORMATS` includes `html`.

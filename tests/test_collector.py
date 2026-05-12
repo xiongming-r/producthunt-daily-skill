@@ -91,6 +91,7 @@ def make_settings(tmp_path) -> Settings:
         comment_ratio=0.04,
         min_comments=8,
         fetch_limit=42,
+        output_formats=("markdown",),
         output_dir=str(tmp_path),
         http_timeout_seconds=10,
     )
@@ -112,6 +113,7 @@ def test_collect_writes_raw_processed_and_report(tmp_path):
     assert result.paths.raw_json.exists()
     assert result.paths.processed_json.exists()
     assert result.paths.markdown_report.exists()
+    assert not result.paths.html_report.exists()
 
     report = result.paths.markdown_report.read_text(encoding="utf-8")
     assert "Pass Product 的中文说明" in report
@@ -197,3 +199,36 @@ def test_collect_raises_when_all_selected_products_fail_enrichment(tmp_path):
 
     with pytest.raises(LlmError, match="No selected products could be enriched"):
         collector.collect("2026-05-10")
+
+
+def test_collect_writes_markdown_and_html_when_configured(tmp_path):
+    settings = make_settings(tmp_path)
+    settings = Settings(
+        product_hunt_token=settings.product_hunt_token,
+        llm_base_url=settings.llm_base_url,
+        llm_api_key=settings.llm_api_key,
+        llm_model=settings.llm_model,
+        min_votes=settings.min_votes,
+        comment_ratio=settings.comment_ratio,
+        min_comments=settings.min_comments,
+        fetch_limit=settings.fetch_limit,
+        output_formats=("markdown", "html"),
+        output_dir=settings.output_dir,
+        http_timeout_seconds=settings.http_timeout_seconds,
+    )
+    collector = Collector(
+        settings=settings,
+        product_hunt_client=FakeProductHuntClient(),
+        llm_client=FakeLlmClient(),
+    )
+
+    result = collector.collect("2026-05-10")
+
+    assert result.paths.markdown_report.exists()
+    assert result.paths.html_report.exists()
+    assert "Pass Product 的中文说明" in result.paths.markdown_report.read_text(
+        encoding="utf-8"
+    )
+    assert "Pass Product 的中文说明" in result.paths.html_report.read_text(
+        encoding="utf-8"
+    )

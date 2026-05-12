@@ -5,6 +5,7 @@ from typing import Any, Protocol
 
 from ph_daily.config import Settings
 from ph_daily.errors import ConfigError, LlmError
+from ph_daily.html_report import render_html_report
 from ph_daily.llm import LlmClient
 from ph_daily.models import ProcessedProduct, Product, ProductEnrichment
 from ph_daily.producthunt import ProductHuntClient
@@ -108,16 +109,25 @@ class Collector:
             },
             "products": processed_products,
         }
-        report = render_daily_report(
-            date=date,
-            fetched_count=len(products),
-            processed_products=processed_products,
-            filter_rule=filter_rule,
-        )
-
         write_json(paths.raw_json, raw_payload)
         write_json(paths.processed_json, processed_payload)
-        write_text(paths.markdown_report, report)
+
+        if "markdown" in self.settings.output_formats:
+            report = render_daily_report(
+                date=date,
+                fetched_count=len(products),
+                processed_products=processed_products,
+                filter_rule=filter_rule,
+            )
+            write_text(paths.markdown_report, report)
+        if "html" in self.settings.output_formats:
+            html_report = render_html_report(
+                date=date,
+                fetched_count=len(products),
+                processed_products=processed_products,
+                filter_rule=filter_rule,
+            )
+            write_text(paths.html_report, html_report)
 
         return CollectionResult(
             date=date,

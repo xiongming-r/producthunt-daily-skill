@@ -25,6 +25,7 @@ MIN_VOTES=300
 COMMENT_RATIO=0.04
 MIN_COMMENTS=8
 FETCH_LIMIT=100
+OUTPUT_FORMATS=markdown,html
 OUTPUT_DIR=.
 HTTP_TIMEOUT_SECONDS=30
 ```
@@ -75,6 +76,7 @@ ph-daily backfill --days 7
 data/raw/YYYY-MM-DD.json
 data/processed/YYYY-MM-DD.json
 reports/daily/YYYY-MM-DD.md
+reports/html/YYYY-MM-DD.html
 ```
 
 当前采集器不会自动创建 `logs/YYYY-MM-DD.log` 这类每日应用日志。上面的 cron 示例会把 stdout/stderr 追加到 `logs/cron.log`，便于排查定时任务失败；如果需要按日期切分日志，可在服务器侧额外配置 logrotate 或自己的 cron 包装脚本。

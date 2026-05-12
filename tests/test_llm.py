@@ -20,6 +20,7 @@ def make_settings(api_key: str = "llm-key") -> Settings:
         comment_ratio=0.04,
         min_comments=8,
         fetch_limit=100,
+        output_formats=("markdown",),
         output_dir=".",
         http_timeout_seconds=5,
     )
