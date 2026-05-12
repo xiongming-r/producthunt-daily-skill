@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-当前正在分支 `feat/producthunt-daily-agent-collector` 上实施。任务 1-9 已完成并通过审阅。任务 10 的部署文档和 Agent 集成文档已在本次更新中完成。下一道关卡：任务 11 真实集成验证，然后进入最终审阅。
+当前正在分支 `feat/producthunt-daily-agent-collector` 上实施。任务 1-10 已完成并完成文档记录。任务 11 的本地集成验证已于 2026-05-12 完成：editable install 成功，`ph-daily` 控制台命令可用，完整测试集通过。由于本地 healthcheck 提示缺少 Product Hunt 凭证，本次未运行真实采集。下一道关卡：配置有效真实凭证后，重新运行 healthcheck 和真实采集验证，然后进入最终审阅。
 
 - 英文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - 中文设计文档：`docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design-zh.md`
@@ -11,7 +11,20 @@
 - 当前实施计划：`docs/superpowers/plans/2026-05-11-producthunt-daily-agent-collector.md`
 - 中文部署文档：`docs/deployment-zh.md`
 - 中文 Agent 集成文档：`docs/agent-integration-zh.md`
-- 下一步：任务 11 真实集成验证。
+- 下一步：配置有效真实凭证，重新运行任务 11 真实采集验证，然后进入最终审阅。
+
+## 最新验证记录
+
+任务 11 于 2026-05-12 在 `feat/producthunt-daily-agent-collector` 分支执行验证：
+
+- `.venv/bin/python -m pip install -e ".[dev]"` 退出码 0；editable package 安装成功。
+- `.venv/bin/python -m pytest -q` 退出码 0；65 个测试通过。
+- 安装后 `.venv/bin/ph-daily` 控制台命令存在。
+- `.venv/bin/ph-daily healthcheck` 退出码 1；已脱敏输出：`Error: PRODUCT_HUNT_TOKEN is required`。
+- 由于 healthcheck 因缺少必需 Product Hunt 配置而失败，本次未运行 `.venv/bin/ph-daily collect --date today`。
+- `data/`、`reports/`、`logs/` 下的运行时产物继续保持不追踪。
+
+下一道关卡：在本地环境或 `.env` 中配置有效 `PRODUCT_HUNT_TOKEN`，重新运行 `.venv/bin/ph-daily healthcheck`，只有当退出码为 0 后再运行 `.venv/bin/ph-daily collect --date today`。如果真实采集成功，需要验证 `data/raw/YYYY-MM-DD.json`、`data/processed/YYYY-MM-DD.json`、`reports/daily/YYYY-MM-DD.md` 是否存在，并检查日报中的产品名、votes、comments 和中文章节。
 
 ## 关键决策
 
@@ -56,5 +69,6 @@ docs/superpowers/plans/
 - [x] 根据确认后的计划开始开发。
 - [x] 任务 1-9 已完成并通过审阅。
 - [x] 任务 10 部署文档和 Agent 集成文档完成。
-- [ ] 任务 11 真实集成验证完成。
+- [x] 任务 11 本地安装、测试、CLI healthcheck 验证完成。
+- [ ] 配置有效 Product Hunt 凭证后完成任务 11 真实采集验证。
 - [ ] 最终审阅完成。

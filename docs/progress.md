@@ -2,14 +2,27 @@
 
 ## Current Stage
 
-Implementation is in progress on branch `feat/producthunt-daily-agent-collector`. Tasks 1-9 are complete and reviewed. Task 10 deployment and agent integration documentation is complete in this update. Next gate: Task 11 live integration verification, then final review.
+Implementation is in progress on branch `feat/producthunt-daily-agent-collector`. Tasks 1-10 are complete and reviewed/documented. Task 11 local integration verification is complete as of 2026-05-12: editable install succeeds, the `ph-daily` console script is available, and the full test suite passes. Live collection was skipped because the local healthcheck reported missing Product Hunt credentials. Next gate: provide valid live credentials and rerun healthcheck plus live collection, then final review.
 
 - Spec: `docs/superpowers/specs/2026-05-11-producthunt-daily-agent-design.md`
 - Research: `docs/research/open-source-evaluation.md`
 - Active plan: `docs/superpowers/plans/2026-05-11-producthunt-daily-agent-collector.md`
 - Deployment docs: `docs/deployment-zh.md`
 - Agent integration docs: `docs/agent-integration-zh.md`
-- Next required step: Task 11 live integration verification.
+- Next required step: configure valid live credentials, rerun Task 11 live collection verification, then final review.
+
+## Latest Verification
+
+Task 11 verification run on 2026-05-12 from branch `feat/producthunt-daily-agent-collector`:
+
+- `.venv/bin/python -m pip install -e ".[dev]"` exited 0; editable package install succeeded.
+- `.venv/bin/python -m pytest -q` exited 0; 65 tests passed.
+- `.venv/bin/ph-daily` exists after install.
+- `.venv/bin/ph-daily healthcheck` exited 1 with sanitized output: `Error: PRODUCT_HUNT_TOKEN is required`.
+- Live collection command `.venv/bin/ph-daily collect --date today` was not run because healthcheck failed due to missing required Product Hunt configuration.
+- Generated runtime outputs under `data/`, `reports/`, and `logs/` remain untracked.
+
+Next gate: add a valid `PRODUCT_HUNT_TOKEN` in the local environment or `.env`, rerun `.venv/bin/ph-daily healthcheck`, and only after it exits 0 run `.venv/bin/ph-daily collect --date today`. If live collection succeeds, verify `data/raw/YYYY-MM-DD.json`, `data/processed/YYYY-MM-DD.json`, and `reports/daily/YYYY-MM-DD.md`, including product names, votes, comments, and Chinese report sections.
 
 ## Key Decisions
 
@@ -53,5 +66,6 @@ Generated data, reports, optional local logs, and `.env` are ignored by git by d
 - [x] Development starts from the approved plan.
 - [x] Tasks 1-9 are complete and reviewed.
 - [x] Task 10 deployment and agent integration docs are completed.
-- [ ] Task 11 live integration verification is completed.
+- [x] Task 11 local install/test/CLI healthcheck verification is completed.
+- [ ] Task 11 live collection verification is completed after valid Product Hunt credentials are configured.
 - [ ] Final review is completed.
