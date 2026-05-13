@@ -50,6 +50,35 @@ def export_skill(destination: Path = DEFAULT_DESTINATION) -> Path:
     return destination
 
 
+def validate_export(destination: Path) -> None:
+    destination = Path(destination)
+    required_files = [
+        destination / "SKILL.md",
+        destination / "references" / "config-reference.md",
+        destination / "references" / "agent-templates.md",
+        destination / "references" / "enrichment-prompt.md",
+        destination / "scripts" / "setup.sh",
+        destination / "scripts" / ".env.example",
+        destination / "scripts" / "pyproject.toml",
+        destination / "scripts" / "src" / "ph_daily" / "cli.py",
+    ]
+    missing = [str(path) for path in required_files if not path.exists()]
+    if missing:
+        raise ValueError(f"export missing required files: {missing}")
+
+    forbidden: list[str] = []
+    for path in destination.rglob("*"):
+        if (
+            path.name in FORBIDDEN_DIRS
+            or path.name == ".DS_Store"
+            or path.suffix in FORBIDDEN_SUFFIXES
+            or path.name.endswith(".egg-info")
+        ):
+            forbidden.append(str(path))
+    if forbidden:
+        raise ValueError(f"export contains forbidden artifacts: {forbidden}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -60,6 +89,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     destination = export_skill(args.dest)
+    validate_export(destination)
     print(destination)
 
 
