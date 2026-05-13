@@ -157,7 +157,9 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
     http_timeout_seconds = _read_float("HTTP_TIMEOUT_SECONDS", 30.0)
 
     if not llm_api_key:
-        raise ConfigError("LLM_API_KEY is required")
+        # LLM_API_KEY is optional — when omitted, the agent should use
+        # its own model to enrich products (see enrichment-prompt.md).
+        pass
     if min_votes < 1:
         raise ConfigError("MIN_VOTES must be at least 1")
     if comment_ratio <= 0:
@@ -171,8 +173,8 @@ def load_settings(load_dotenv_file: bool = True) -> Settings:
         raise ConfigError(f"PRODUCT_HUNT_ORDER must be one of: {allowed_orders}")
     if http_timeout_seconds <= 0:
         raise ConfigError("HTTP_TIMEOUT_SECONDS must be greater than 0")
-    if not llm_model:
-        raise ConfigError("LLM_MODEL is required")
+    if llm_api_key and not llm_model:
+        raise ConfigError("LLM_MODEL is required when LLM_API_KEY is set")
 
     period_quality = {
         "daily": _period_quality(
