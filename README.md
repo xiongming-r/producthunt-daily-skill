@@ -197,6 +197,7 @@ Recommended commands:
 ph-daily healthcheck
 ph-daily collect --date today
 ph-daily collect --period weekly --date today
+ph-daily collect --period daily --date today --no-enrichment
 ph-daily backfill --days 7
 ```
 
@@ -207,6 +208,18 @@ Recommended automation behavior:
 - Do not rewrite the filtering or enrichment rules in the agent prompt.
 
 See [docs/agent-integration-zh.md](docs/agent-integration-zh.md) for Chinese agent integration notes.
+
+## Skill Module
+
+The repository keeps `src/ph_daily` as the only CLI source of truth and maintains a separate `skills/producthunt-daily` source module for agent distribution. Exported skill packages are generated from project sources, not hand-maintained as a second Python codebase.
+
+Agent Mode:
+
+```bash
+ph-daily collect --period daily --date today --no-enrichment
+```
+
+Use Agent Mode when the host agent should perform product analysis with its own model after the CLI has fetched and filtered Product Hunt data.
 
 ## Project Structure
 
@@ -224,6 +237,7 @@ src/ph_daily/
   storage.py        # output paths and writers
 
 tests/              # pytest coverage for core modules
+skills/             # source skill module for agent distribution
 docs/               # design, deployment, agent integration, progress notes
 ```
 
@@ -452,6 +466,7 @@ Agent 不应该重写筛选和解读逻辑，只需要调用 CLI。
 ph-daily healthcheck
 ph-daily collect --date today
 ph-daily collect --period weekly --date today
+ph-daily collect --period daily --date today --no-enrichment
 ph-daily backfill --days 7
 ```
 
@@ -462,6 +477,18 @@ ph-daily backfill --days 7
 - 不在 Agent prompt 里复制一份筛选或 enrichment 逻辑。
 
 更详细的中文 Agent 集成说明见 [docs/agent-integration-zh.md](docs/agent-integration-zh.md)。
+
+## Skill 模块
+
+仓库保留 `src/ph_daily` 作为唯一 CLI 源码真源，同时维护独立的 `skills/producthunt-daily` 源模块用于 Agent 分发。导出的 skill 包由项目源码生成，不手工维护第二份 Python 代码。
+
+Agent Mode：
+
+```bash
+ph-daily collect --period daily --date today --no-enrichment
+```
+
+当宿主 Agent 希望用自己的模型完成产品解读时，可以使用 Agent Mode：CLI 只负责抓取和过滤 Product Hunt 数据，Agent 再读取 processed JSON 做分析。
 
 ## 项目结构
 
@@ -479,6 +506,7 @@ src/ph_daily/
   storage.py        # 输出路径与文件写入
 
 tests/              # pytest 测试
+skills/             # Agent 分发用 skill 源模块
 docs/               # 设计、部署、Agent 集成、进度文档
 ```
 

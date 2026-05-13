@@ -205,6 +205,8 @@ Agent 适合处理“什么时候跑、跑什么、失败后怎么报告”。
 
 如果 WorkBuddy、Qclaw、Codex 或 Claude Code 支持“技能 / skill / command / workflow”，建议把集成封装成一个轻量技能，而不是把长提示词散落在多个任务里。
 
+项目现在把 `skills/producthunt-daily` 作为 skill 源模块。不要直接编辑导出的 `dist/skills/producthunt-daily/scripts/src/ph_daily`；需要更新分发包时，修改项目真源后用 `tools/export_producthunt_skill.py` 重新生成。
+
 技能边界：
 
 - 输入：周期、日期、可选 Product Hunt 过滤条件、可选关键词。
