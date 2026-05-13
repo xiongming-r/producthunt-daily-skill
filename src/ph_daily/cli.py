@@ -85,6 +85,12 @@ def build_parser() -> argparse.ArgumentParser:
     collect_parser.add_argument("--twitter-url")
     collect_parser.add_argument("--include-keyword", action="append", default=None)
     collect_parser.add_argument("--exclude-keyword", action="append", default=None)
+    collect_parser.add_argument(
+        "--no-enrichment",
+        action="store_true",
+        default=False,
+        help="Skip LLM enrichment; output raw filtered data only",
+    )
 
     backfill_parser = subparsers.add_parser("backfill")
     backfill_parser.add_argument("--days", required=True, type=int)
@@ -127,6 +133,7 @@ def run(argv: list[str] | None = None) -> ExitCode:
                     if args.exclude_keyword is not None
                     else None
                 ),
+                enrichment_enabled=not args.no_enrichment,
             )
             print(f"Selected {result.selected_count}/{result.fetched_count} products")
             print(f"Report: {result.paths.markdown_report}")
