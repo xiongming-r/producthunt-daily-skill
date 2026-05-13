@@ -13,7 +13,7 @@ venv/
 logs/
 data/raw/
 data/processed/
-reports/daily/
+reports/
 
 *.log
 .DS_Store

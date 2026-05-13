@@ -141,19 +141,28 @@ class ProductHuntClient:
         ) as client:
             while len(products) < limit:
                 first = max(1, min(50, limit - len(products)))
+                variables: dict[str, Any] = {
+                    "first": first,
+                    "postedAfter": posted_after,
+                    "postedBefore": posted_before,
+                    "order": filters.order,
+                }
+                # Only include optional parameters when explicitly set,
+                # because the PH API returns empty results when these
+                # keys are present but null/empty.
+                if cursor:
+                    variables["after"] = cursor
+                if filters.featured is not None:
+                    variables["featured"] = filters.featured
+                if filters.topic:
+                    variables["topic"] = filters.topic
+                if filters.url:
+                    variables["url"] = filters.url
+                if filters.twitter_url:
+                    variables["twitterUrl"] = filters.twitter_url
                 payload = {
                     "query": self.build_posts_query(),
-                    "variables": {
-                        "first": first,
-                        "postedAfter": posted_after,
-                        "postedBefore": posted_before,
-                        "after": cursor,
-                        "featured": filters.featured,
-                        "order": filters.order,
-                        "topic": filters.topic or None,
-                        "url": filters.url or None,
-                        "twitterUrl": filters.twitter_url or None,
-                    },
+                    "variables": variables,
                 }
                 try:
                     response = client.post(self.endpoint, headers=headers, json=payload)
