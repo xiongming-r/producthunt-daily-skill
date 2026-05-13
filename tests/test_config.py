@@ -52,12 +52,14 @@ def test_missing_product_hunt_token_fails(monkeypatch):
         load_settings(load_dotenv_file=False)
 
 
-def test_missing_llm_api_key_fails(monkeypatch):
+def test_missing_llm_api_key_is_allowed_for_agent_mode(monkeypatch):
     _set_valid_env(monkeypatch)
     monkeypatch.setenv("LLM_API_KEY", "   ")
 
-    with pytest.raises(ConfigError, match="LLM_API_KEY is required"):
-        load_settings(load_dotenv_file=False)
+    settings = load_settings(load_dotenv_file=False)
+
+    assert settings.llm_api_key == ""
+    assert settings.llm_model == "model-a"
 
 
 def test_invalid_thresholds_fail(monkeypatch):

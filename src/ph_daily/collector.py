@@ -65,6 +65,7 @@ class Collector:
         post_filters: ProductHuntPostFilters | None = None,
         include_keywords: tuple[str, ...] | None = None,
         exclude_keywords: tuple[str, ...] | None = None,
+        enrichment_enabled: bool = True,
     ) -> CollectionResult:
         window = build_period_window(period, date)
         quality = self.settings.quality_for_period(window.period)
@@ -111,7 +112,7 @@ class Collector:
             enrichment: ProductEnrichment | None = None
             enrichment_error: str | None = None
 
-            if filter_decision.passed:
+            if filter_decision.passed and enrichment_enabled:
                 try:
                     enrichment = self.llm_client.enrich_product(product)
                     successful_enrichments += 1
@@ -133,7 +134,7 @@ class Collector:
             processed_product.filter_decision.passed
             for processed_product in processed_products
         )
-        if selected_count and successful_enrichments == 0:
+        if enrichment_enabled and selected_count and successful_enrichments == 0:
             raise LlmError("No selected products could be enriched")
 
         paths = build_output_paths(

@@ -104,6 +104,11 @@ class LlmErrorFailingClient:
         raise LlmError(f"upstream failed for {product.name}")
 
 
+class UnexpectedLlmClient:
+    def enrich_product(self, product: Product) -> ProductEnrichment:
+        raise AssertionError("LLM should not be called in no-enrichment mode")
+
+
 def make_settings(tmp_path) -> Settings:
     period_quality = {
         "daily": QualitySettings(300, 0.04, 8, 42),
@@ -281,6 +286,31 @@ def test_collect_passes_product_hunt_filters_from_settings(tmp_path):
         url="https://example.com",
         twitter_url="https://x.com/example",
     )
+
+
+def test_collect_period_skips_llm_when_enrichment_disabled(tmp_path):
+    products = [
+        make_product("First Product", votes=500, comments=25),
+        make_product("Second Product", votes=600, comments=30),
+    ]
+    collector = Collector(
+        settings=make_settings(tmp_path),
+        product_hunt_client=FakeProductHuntClient(products=products),
+        llm_client=UnexpectedLlmClient(),
+    )
+
+    result = collector.collect_period(
+        "2026-05-10",
+        period="daily",
+        enrichment_enabled=False,
+    )
+
+    assert result.selected_count == 2
+    processed_data = json.loads(result.paths.processed_json.read_text(encoding="utf-8"))
+    assert processed_data["products"][0]["enrichment"] is None
+    assert processed_data["products"][0]["enrichment_error"] is None
+    assert processed_data["products"][1]["enrichment"] is None
+    assert processed_data["products"][1]["enrichment_error"] is None
 
 
 def test_collect_raises_when_only_selected_product_fails_enrichment(tmp_path):

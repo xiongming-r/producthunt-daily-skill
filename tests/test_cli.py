@@ -84,12 +84,14 @@ def test_collect_prints_counts_and_report_path(monkeypatch, capsys):
             post_filters=None,
             include_keywords=None,
             exclude_keywords=None,
+            enrichment_enabled=True,
         ):
             assert target_date == "2026-05-10"
             assert period == "daily"
             assert post_filters == ProductHuntPostFilters(order="VOTES")
             assert include_keywords is None
             assert exclude_keywords is None
+            assert enrichment_enabled is True
             return SimpleNamespace(
                 fetched_count=12,
                 selected_count=3,
@@ -127,6 +129,7 @@ def test_collect_passes_period_and_filter_overrides(monkeypatch, capsys):
             post_filters=None,
             include_keywords=None,
             exclude_keywords=None,
+            enrichment_enabled=True,
         ):
             assert target_date == "2026-05-10"
             assert period == "monthly"
@@ -139,6 +142,7 @@ def test_collect_passes_period_and_filter_overrides(monkeypatch, capsys):
             )
             assert include_keywords == ("ai", "agent")
             assert exclude_keywords == ("game",)
+            assert enrichment_enabled is True
             return SimpleNamespace(
                 fetched_count=20,
                 selected_count=5,
@@ -177,6 +181,47 @@ def test_collect_passes_period_and_filter_overrides(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert exit_code == ExitCode.SUCCESS
     assert "Selected 5/20 products" in captured.out
+
+
+def test_collect_passes_no_enrichment_flag(monkeypatch, capsys):
+    settings = SimpleNamespace(
+        product_hunt_featured=None,
+        product_hunt_order="VOTES",
+        product_hunt_topic="",
+        product_hunt_url="",
+        product_hunt_twitter_url="",
+    )
+
+    class FakeCollector:
+        def __init__(self, actual_settings):
+            assert actual_settings is settings
+
+        def collect_period(
+            self,
+            target_date,
+            period="daily",
+            post_filters=None,
+            include_keywords=None,
+            exclude_keywords=None,
+            enrichment_enabled=True,
+        ):
+            assert target_date == "2026-05-10"
+            assert period == "daily"
+            assert enrichment_enabled is False
+            return SimpleNamespace(
+                fetched_count=8,
+                selected_count=2,
+                paths=SimpleNamespace(markdown_report="/tmp/report.md"),
+            )
+
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+    monkeypatch.setattr(cli, "Collector", FakeCollector)
+
+    exit_code = run(["collect", "--date", "2026-05-10", "--no-enrichment"])
+
+    captured = capsys.readouterr()
+    assert exit_code == ExitCode.SUCCESS
+    assert "Selected 2/8 products" in captured.out
 
 
 def test_backfill_collects_yesterday_through_requested_days(monkeypatch, capsys):
