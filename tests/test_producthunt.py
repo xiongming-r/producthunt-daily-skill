@@ -197,7 +197,7 @@ def test_fetch_posts_paginates_with_end_cursor():
     requested_after_values = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        requested_after_values.append(json.loads(request.content)["variables"]["after"])
+        requested_after_values.append(json.loads(request.content)["variables"].get("after"))
         if len(requested_after_values) == 1:
             return httpx.Response(
                 200,
