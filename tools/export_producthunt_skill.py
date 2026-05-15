@@ -36,6 +36,7 @@ def export_skill(destination: Path = DEFAULT_DESTINATION) -> Path:
     destination.mkdir(parents=True, exist_ok=True)
 
     shutil.copy2(SKILL_SOURCE / "SKILL.md", destination / "SKILL.md")
+    shutil.copy2(SKILL_SOURCE / "README.md", destination / "README.md")
     _copytree(SKILL_SOURCE / "references", destination / "references")
 
     scripts_destination = destination / "scripts"
@@ -54,6 +55,7 @@ def validate_export(destination: Path) -> None:
     destination = Path(destination)
     required_files = [
         destination / "SKILL.md",
+        destination / "README.md",
         destination / "references" / "config-reference.md",
         destination / "references" / "agent-templates.md",
         destination / "references" / "enrichment-prompt.md",

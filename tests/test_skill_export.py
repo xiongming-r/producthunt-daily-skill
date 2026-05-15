@@ -7,6 +7,7 @@ def test_export_skill_creates_self_contained_package(tmp_path):
     export_skill(destination)
 
     assert (destination / "SKILL.md").exists()
+    assert (destination / "README.md").exists()
     assert (destination / "references" / "config-reference.md").exists()
     assert (destination / "references" / "agent-templates.md").exists()
     assert (destination / "references" / "enrichment-prompt.md").exists()
