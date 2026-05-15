@@ -213,6 +213,22 @@ See [docs/agent-integration-zh.md](docs/agent-integration-zh.md) for Chinese age
 
 The repository keeps `src/ph_daily` as the only CLI source of truth and maintains a separate `skills/producthunt-daily` source module for agent distribution. Exported skill packages are generated from project sources, not hand-maintained as a second Python codebase.
 
+The skill module is intentionally lean. `SKILL.md` is the agent entrypoint, `references/` contains prompt/config guidance, and `scripts/` contains setup resources for exported packages. Human-facing usage and distribution notes stay in this README so agent runtimes do not confuse explanatory documentation with execution instructions.
+
+Export the current skill package:
+
+```bash
+.venv/bin/python tools/export_producthunt_skill.py
+```
+
+The generated directory is:
+
+```text
+dist/skills/producthunt-daily
+```
+
+Use that `producthunt-daily` directory as the skill package for other agents. It contains `SKILL.md`, `references/`, and `scripts/`; it does not include a separate README by design.
+
 Agent Mode:
 
 ```bash
@@ -481,6 +497,22 @@ ph-daily backfill --days 7
 ## Skill 模块
 
 仓库保留 `src/ph_daily` 作为唯一 CLI 源码真源，同时维护独立的 `skills/producthunt-daily` 源模块用于 Agent 分发。导出的 skill 包由项目源码生成，不手工维护第二份 Python 代码。
+
+Skill 模块会保持精简：`SKILL.md` 是 Agent 入口，`references/` 放提示词和配置说明，`scripts/` 放导出包安装资源。面向人的介绍、安装和分发说明统一放在当前主 README，避免不同 Agent 运行时把说明文档误当成执行指令。
+
+导出当前 skill 包：
+
+```bash
+.venv/bin/python tools/export_producthunt_skill.py
+```
+
+生成目录：
+
+```text
+dist/skills/producthunt-daily
+```
+
+把这个 `producthunt-daily` 目录交给其他 Agent 作为 skill 包即可。它包含 `SKILL.md`、`references/` 和 `scripts/`；按设计不再包含单独的 README。
 
 Agent Mode：
 
